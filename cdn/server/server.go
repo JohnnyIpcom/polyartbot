@@ -16,10 +16,11 @@ type Server struct {
 	log *zap.Logger
 
 	health controllers.Health
+	image  controllers.Image
 	router *gin.Engine
 }
 
-func New(cfg config.Config, log *zap.Logger) (*Server, error) {
+func New(cfg config.Config, log *zap.Logger, health controllers.Health, image controllers.Image) (*Server, error) {
 	router := gin.New()
 	router.Use(ginzap.Ginzap(log, time.RFC3339, true))
 	router.Use(ginzap.RecoveryWithZap(log, true))
@@ -27,7 +28,8 @@ func New(cfg config.Config, log *zap.Logger) (*Server, error) {
 	server := &Server{
 		cfg:    cfg.Server,
 		log:    log,
-		health: controllers.NewHealth(),
+		health: health,
+		image:  image,
 		router: router,
 	}
 
@@ -40,6 +42,12 @@ func New(cfg config.Config, log *zap.Logger) (*Server, error) {
 
 func (s *Server) initRoutes() error {
 	s.router.GET("/health", s.health.Health)
+
+	v1 := s.router.Group("v1")
+	v1.POST("/upload", s.image.Upload)
+	v1.POST("/uploadmany", s.image.UploadMany)
+	v1.GET("/image/:filename", s.image.Get)
+	v1.DELETE("/image/:filename", s.image.Delete)
 
 	return nil
 }

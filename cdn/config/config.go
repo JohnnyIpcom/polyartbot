@@ -14,8 +14,8 @@ type Server struct {
 
 // Storage ...
 type Storage struct {
-	URI    string `yaml:"uri"`
-	DBName string `yaml:"dbName"`
+	URI     string `yaml:"uri"`
+	FilesDB string `yaml:"filesDB"`
 }
 
 // Config ...

@@ -10,28 +10,33 @@ import (
 	"go.uber.org/zap"
 )
 
-type Storage struct {
+type Storage interface {
+	Image
+	Connect(ctx context.Context) error
+	Disconnect(ctx context.Context) error
+}
+
+type Mongo struct {
 	cfg    config.Storage
 	log    *zap.Logger
 	client *mongo.Client
-	dbase  *mongo.Database
-	files  *mongo.Collection
+	files  *mongo.Database
 }
 
-func New(cfg config.Config, log *zap.Logger) (*Storage, error) {
+func NewMongo(cfg config.Config, log *zap.Logger) (Storage, error) {
 	client, err := mongo.NewClient(options.Client().ApplyURI(cfg.Storage.URI))
 	if err != nil {
 		return nil, err
 	}
 
-	return &Storage{
+	return &Mongo{
 		cfg:    cfg.Storage,
 		log:    log,
 		client: client,
 	}, nil
 }
 
-func (s *Storage) Connect(ctx context.Context) error {
+func (s *Mongo) Connect(ctx context.Context) error {
 	s.log.Info("Connecting to storage...", zap.String("uri", s.cfg.URI))
 	if err := s.client.Connect(ctx); err != nil {
 		return err
@@ -41,12 +46,11 @@ func (s *Storage) Connect(ctx context.Context) error {
 		return err
 	}
 
-	s.dbase = s.client.Database(s.cfg.DBName)
-	s.files = s.dbase.Collection("files")
+	s.files = s.client.Database(s.cfg.FilesDB)
 	return nil
 }
 
-func (s *Storage) Disconnect(ctx context.Context) error {
+func (s *Mongo) Disconnect(ctx context.Context) error {
 	s.log.Info("Disconnecting from storage...")
 	return s.client.Disconnect(ctx)
 }

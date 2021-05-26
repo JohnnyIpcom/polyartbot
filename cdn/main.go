@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/johnnyipcom/polyartbot/cdn/config"
+	"github.com/johnnyipcom/polyartbot/cdn/controllers"
 	"github.com/johnnyipcom/polyartbot/cdn/logger"
 	"github.com/johnnyipcom/polyartbot/cdn/server"
 	"github.com/johnnyipcom/polyartbot/cdn/storage"
@@ -14,7 +15,7 @@ import (
 type RegisterParams struct {
 	fx.In
 
-	Storage *storage.Storage
+	Storage storage.Storage
 	Server  *server.Server
 }
 
@@ -52,7 +53,9 @@ func main() {
 		//fx.StartTimeout(30*time.Minute), // uncomment this for debug
 		fx.Supply(cfg),
 		fx.Provide(logger.New),
-		fx.Provide(storage.New),
+		fx.Provide(storage.NewMongo),
+		fx.Provide(controllers.NewHealthController),
+		fx.Provide(controllers.NewImageController),
 		fx.Provide(server.New),
 		fx.Invoke(register),
 	).Run()

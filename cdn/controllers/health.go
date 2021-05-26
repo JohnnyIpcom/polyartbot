@@ -14,7 +14,7 @@ type health struct{}
 
 var _ Health = &health{}
 
-func NewHealth() Health {
+func NewHealthController() Health {
 	return &health{}
 }
 
