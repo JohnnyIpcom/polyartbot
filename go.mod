@@ -9,6 +9,7 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
+	github.com/streadway/amqp v1.0.0
 	go.mongodb.org/mongo-driver v1.5.2
 	go.uber.org/fx v1.13.1
 	go.uber.org/zap v1.16.0

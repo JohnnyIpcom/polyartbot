@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/gin-contrib/zap"
+	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/johnnyipcom/polyartbot/cdn/config"
 	"github.com/johnnyipcom/polyartbot/cdn/controllers"
@@ -15,12 +15,12 @@ type Server struct {
 	cfg config.Server
 	log *zap.Logger
 
-	health controllers.Health
-	image  controllers.Image
+	health controllers.HealthController
+	image  controllers.ImageController
 	router *gin.Engine
 }
 
-func New(cfg config.Config, log *zap.Logger, health controllers.Health, image controllers.Image) (*Server, error) {
+func New(cfg config.Config, log *zap.Logger, health controllers.HealthController, image controllers.ImageController) (*Server, error) {
 	router := gin.New()
 	router.Use(ginzap.Ginzap(log, time.RFC3339, true))
 	router.Use(ginzap.RecoveryWithZap(log, true))
@@ -44,8 +44,7 @@ func (s *Server) initRoutes() error {
 	s.router.GET("/health", s.health.Health)
 
 	v1 := s.router.Group("v1")
-	v1.POST("/upload", s.image.Upload)
-	v1.POST("/uploadmany", s.image.UploadMany)
+	v1.POST("/image", s.image.Post)
 	v1.GET("/image/:filename", s.image.Get)
 	v1.DELETE("/image/:filename", s.image.Delete)
 

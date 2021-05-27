@@ -12,17 +12,18 @@ type Server struct {
 	Addr string `yaml:"addr" default:":8080"`
 }
 
-// Storage ...
-type Storage struct {
-	URI     string `yaml:"uri"`
-	FilesDB string `yaml:"filesDB"`
+// Mongo ...
+type Mongo struct {
+	URI    string `yaml:"uri"`
+	DBName string `yaml:"dbName"`
 }
 
 // Config ...
 type Config struct {
-	Server  Server  `yaml:"server"`
-	Storage Storage `yaml:"storage"`
-	Logger  Logger  `yaml:"logger"`
+	Server   Server   `yaml:"server"`
+	Mongo    Mongo    `yaml:"mongo"`
+	RabbitMQ RabbitMQ `yaml:"rabbitMQ"`
+	Logger   Logger   `yaml:"logger"`
 }
 
 const (

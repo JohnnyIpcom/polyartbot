@@ -6,18 +6,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Health interface {
+type HealthController interface {
 	Health(c *gin.Context)
 }
 
-type health struct{}
+type healthController struct{}
 
-var _ Health = &health{}
+var _ HealthController = &healthController{}
 
-func NewHealthController() Health {
-	return &health{}
+func NewHealthController() HealthController {
+	return &healthController{}
 }
 
-func (h *health) Health(c *gin.Context) {
+func (h *healthController) Health(c *gin.Context) {
 	c.String(http.StatusOK, "OK")
 }

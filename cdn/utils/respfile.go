@@ -1,26 +1,26 @@
 package utils
 
 type RespFile interface {
-	Name() string
+	ID() string
 	Size() int
 }
 
 type respFile struct {
-	FileName string `json:"file_name"`
-	FileSize int    `json:"file_size"`
+	FileID   string `json:"fileID"`
+	FileSize int    `json:"fileSize"`
 }
 
-func (f respFile) Name() string {
-	return f.FileName
+func (f respFile) ID() string {
+	return f.FileID
 }
 
 func (f respFile) Size() int {
 	return f.FileSize
 }
 
-func NewFileResponse(name string, size int) RespFile {
+func NewFileResponse(fileID string, size int) RespFile {
 	return &respFile{
-		FileName: name,
+		FileID:   fileID,
 		FileSize: size,
 	}
 }
