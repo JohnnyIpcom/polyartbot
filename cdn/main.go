@@ -3,14 +3,18 @@ package main
 import (
 	"context"
 	"flag"
+	"time"
 
 	"github.com/johnnyipcom/polyartbot/cdn/config"
 	"github.com/johnnyipcom/polyartbot/cdn/controllers"
-	"github.com/johnnyipcom/polyartbot/cdn/logger"
-	"github.com/johnnyipcom/polyartbot/cdn/rabbitmq"
 	"github.com/johnnyipcom/polyartbot/cdn/server"
 	"github.com/johnnyipcom/polyartbot/cdn/services"
 	"github.com/johnnyipcom/polyartbot/cdn/storage"
+
+	pcfg "github.com/johnnyipcom/polyartbot/config"
+	"github.com/johnnyipcom/polyartbot/logger"
+	"github.com/johnnyipcom/polyartbot/rabbitmq"
+
 	"go.uber.org/fx"
 )
 
@@ -29,7 +33,7 @@ func register(lifecycle fx.Lifecycle, p RegisterParams) {
 				return err
 			}
 
-			if err := p.RabbitMQ.Connect(); err != nil {
+			if err := p.RabbitMQ.Connect(ctx); err != nil {
 				return err
 			}
 
@@ -38,7 +42,7 @@ func register(lifecycle fx.Lifecycle, p RegisterParams) {
 
 		OnStop: func(ctx context.Context) error {
 			p.Server.Stop(ctx)
-			p.RabbitMQ.Disconnect()
+			p.RabbitMQ.Disconnect(ctx)
 			return p.Storage.Disconnect(ctx)
 		},
 	})
@@ -54,10 +58,17 @@ func main() {
 		panic(err)
 	}
 
+	log, err := logger.New(cfg.Logger)
+	if err != nil {
+		panic(err)
+	}
+
 	fx.New(
-		//fx.StartTimeout(30*time.Minute), // uncomment this for debug
-		fx.Supply(cfg),
-		fx.Provide(logger.New),
+		fx.StartTimeout(30*time.Minute), // uncomment this for debug
+		fx.Supply(cfg, log),
+		fx.Provide(func(cfg config.Config) pcfg.RabbitMQ {
+			return cfg.RabbitMQ
+		}),
 		fx.Provide(storage.NewMongo),
 		fx.Provide(rabbitmq.New),
 		fx.Provide(controllers.NewHealthController),

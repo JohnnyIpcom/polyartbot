@@ -4,10 +4,13 @@ import (
 	"errors"
 	"io"
 	"mime/multipart"
+	"sync"
 
 	"github.com/johnnyipcom/polyartbot/cdn/config"
-	"github.com/johnnyipcom/polyartbot/cdn/rabbitmq"
 	"github.com/johnnyipcom/polyartbot/cdn/storage"
+
+	"github.com/johnnyipcom/polyartbot/rabbitmq"
+
 	"go.uber.org/zap"
 )
 
@@ -19,11 +22,11 @@ type ImageService interface {
 }
 
 type imageService struct {
-	cfg       config.RabbitMQ
 	log       *zap.Logger
 	storage   storage.Storage
 	rabbitMQ  *rabbitmq.RabbitMQ
 	imageAMQP *rabbitmq.AMQP
+	once      sync.Once
 }
 
 var _ ImageService = &imageService{}
@@ -34,17 +37,11 @@ func NewImageService(cfg config.Config, s storage.Storage, r *rabbitmq.RabbitMQ,
 		return nil, errors.New("no valid 'image.upload' config")
 	}
 
-	amqp := rabbitmq.NewAMQP(amqpConfig, r)
-	if err := amqp.Setup(); err != nil {
-		return nil, err
-	}
-
 	return &imageService{
-		cfg:       cfg.RabbitMQ,
 		log:       log,
 		storage:   s,
 		rabbitMQ:  r,
-		imageAMQP: amqp,
+		imageAMQP: rabbitmq.NewAMQP(amqpConfig, r, log),
 	}, nil
 }
 
@@ -59,11 +56,15 @@ func (i *imageService) Upload(file multipart.File, header multipart.FileHeader) 
 		return "", 0, err
 	}
 
-	return string(fileID), len(data), err
+	return fileID, len(data), err
 }
 
 func (i *imageService) Publish(fileID string) error {
-	return i.imageAMQP.Publish(fileID, "text/plain", []byte(fileID))
+	return i.imageAMQP.Publish(rabbitmq.Message{
+		MessageID:   fileID,
+		ContentType: "text/plain",
+		Body:        []byte(fileID),
+	})
 }
 
 func (i *imageService) Download(fileID string) ([]byte, error) {

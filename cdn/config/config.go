@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 
+	pcfg "github.com/johnnyipcom/polyartbot/config"
+
 	"github.com/creasty/defaults"
 	"gopkg.in/yaml.v3"
 )
@@ -20,10 +22,10 @@ type Mongo struct {
 
 // Config ...
 type Config struct {
-	Server   Server   `yaml:"server"`
-	Mongo    Mongo    `yaml:"mongo"`
-	RabbitMQ RabbitMQ `yaml:"rabbitMQ"`
-	Logger   Logger   `yaml:"logger"`
+	Server   Server        `yaml:"server"`
+	Mongo    Mongo         `yaml:"mongo"`
+	RabbitMQ pcfg.RabbitMQ `yaml:"rabbitMQ"`
+	Logger   pcfg.Logger   `yaml:"logger"`
 }
 
 const (

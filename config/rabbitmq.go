@@ -1,6 +1,11 @@
 package config
 
-import "time"
+import (
+	"time"
+
+	"github.com/creasty/defaults"
+	"gopkg.in/yaml.v3"
+)
 
 // Reconnect ...
 type Reconnect struct {
@@ -9,10 +14,22 @@ type Reconnect struct {
 }
 
 type AMQP struct {
-	ExchangeName string `yaml:"exchangeName"`
-	ExchangeType string `yaml:"exchangeType"`
-	RoutingKey   string `yaml:"routingKey"`
-	QueueName    string `yaml:"queueName"`
+	ExchangeName  string `yaml:"exchangeName"`
+	ExchangeType  string `yaml:"exchangeType"`
+	RoutingKey    string `yaml:"routingKey"`
+	QueueName     string `yaml:"queueName"`
+	PrefetchCount int    `yaml:"prefetchCount" default:"1"`
+}
+
+func (a *AMQP) UnmarshalYAML(node *yaml.Node) error {
+	defaults.MustSet(a)
+
+	type rawAMQP AMQP
+	if err := node.Decode((*rawAMQP)(a)); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // RabbitMQ ...
