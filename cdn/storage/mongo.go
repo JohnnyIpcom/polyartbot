@@ -28,7 +28,7 @@ func NewMongo(cfg config.Config, log *zap.Logger) (Storage, error) {
 
 	return &Mongo{
 		cfg:    cfg.Mongo,
-		log:    log,
+		log:    log.Named("mongo"),
 		client: client,
 	}, nil
 }
@@ -73,6 +73,7 @@ func (s *Mongo) Upload(name string, p []byte) (string, error) {
 }
 
 func (s *Mongo) Download(fileID string) ([]byte, error) {
+	s.log.Info("Downloading file...", zap.String("fileID", fileID))
 	bucket, err := gridfs.NewBucket(s.db)
 	if err != nil {
 		return nil, err
@@ -89,10 +90,12 @@ func (s *Mongo) Download(fileID string) ([]byte, error) {
 		return nil, err
 	}
 
+	s.log.Info("Downloaded bytes...", zap.Int("len", len(data)))
 	return data, nil
 }
 
 func (s *Mongo) Delete(fileID string) error {
+	s.log.Info("Deleting file...", zap.String("fileID", fileID))
 	bucket, err := gridfs.NewBucket(s.db)
 	if err != nil {
 		return err

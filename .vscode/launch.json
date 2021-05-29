@@ -14,6 +14,17 @@
                 "-config",
                 "${workspaceFolder}/cdn/cdn.yaml"
             ]
+        },
+        {
+            "name": "Launch Worker",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/worker/main.go",
+            "args": [
+                "-config",
+                "${workspaceFolder}/worker/worker.yaml"
+            ]
         }
     ]
 }

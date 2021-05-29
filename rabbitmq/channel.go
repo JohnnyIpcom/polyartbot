@@ -21,7 +21,7 @@ func NewChannel(cfg config.Reconnect, c *amqp.Channel, log *zap.Logger) *Channel
 		Channel: c,
 
 		cfg: cfg,
-		log: log,
+		log: log.Named("channel"),
 	}
 }
 

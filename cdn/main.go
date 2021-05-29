@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"time"
 
 	"github.com/johnnyipcom/polyartbot/cdn/config"
 	"github.com/johnnyipcom/polyartbot/cdn/controllers"
@@ -64,7 +63,7 @@ func main() {
 	}
 
 	fx.New(
-		fx.StartTimeout(30*time.Minute), // uncomment this for debug
+		//fx.StartTimeout(30*time.Minute), // uncomment this for debug
 		fx.Supply(cfg, log),
 		fx.Provide(func(cfg config.Config) pcfg.RabbitMQ {
 			return cfg.RabbitMQ

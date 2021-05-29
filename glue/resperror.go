@@ -1,45 +1,37 @@
-package utils
+package glue
 
 import (
 	"fmt"
 	"net/http"
 )
 
-// RespError interface
-type RespError interface {
-	Message() string
-	Status() int
-	Error() string
-	Causes() []interface{}
-}
-
-type respError struct {
+type RespError struct {
 	ErrMessage string        `json:"message"`
 	ErrStatus  int           `json:"status"`
 	ErrError   string        `json:"error"`
 	ErrCauses  []interface{} `json:"causes"`
 }
 
-func (e respError) Error() string {
+func (e RespError) Error() string {
 	return fmt.Sprintf("message: %s - status: %d - error: %s - causes: %v",
 		e.ErrMessage, e.ErrStatus, e.ErrError, e.ErrCauses)
 }
 
-func (e respError) Message() string {
+func (e RespError) Message() string {
 	return e.ErrMessage
 }
 
-func (e respError) Status() int {
+func (e RespError) Status() int {
 	return e.ErrStatus
 }
 
-func (e respError) Causes() []interface{} {
+func (e RespError) Causes() []interface{} {
 	return e.ErrCauses
 }
 
 // NewNotFoundError ...
 func NewNotFoundError(msg string) RespError {
-	return respError{
+	return RespError{
 		ErrMessage: msg,
 		ErrStatus:  http.StatusNotFound,
 		ErrError:   "not found",
@@ -48,7 +40,7 @@ func NewNotFoundError(msg string) RespError {
 
 // NewBadRequestError ...
 func NewBadRequestError(msg string) RespError {
-	return respError{
+	return RespError{
 		ErrMessage: msg,
 		ErrStatus:  http.StatusBadRequest,
 		ErrError:   "bad request",
@@ -57,7 +49,7 @@ func NewBadRequestError(msg string) RespError {
 
 // NewInternalServerError ...
 func NewInternalServerError(msg string, err error) RespError {
-	result := respError{
+	result := RespError{
 		ErrMessage: msg,
 		ErrStatus:  http.StatusInternalServerError,
 		ErrError:   "internal_server_error",

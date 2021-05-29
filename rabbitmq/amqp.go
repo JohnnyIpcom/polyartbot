@@ -27,7 +27,7 @@ type AMQP struct {
 func NewAMQP(cfg config.AMQP, rabbitMQ *RabbitMQ, log *zap.Logger) *AMQP {
 	return &AMQP{
 		cfg:      cfg,
-		log:      log,
+		log:      log.Named("amqp"),
 		rabbitMQ: rabbitMQ,
 	}
 }
@@ -165,6 +165,8 @@ func (a *AMQP) Consume(consumer string) (<-chan Message, error) {
 
 			m.Body = make([]byte, len(d.Body))
 			copy(m.Body, d.Body)
+
+			msgs <- m
 
 			if err := d.Ack(false); err != nil {
 				a.log.Error("Unable to acknowledge the message, dropped", zap.Error(err))

@@ -1,13 +1,14 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"mime/multipart"
-	"sync"
 
 	"github.com/johnnyipcom/polyartbot/cdn/config"
 	"github.com/johnnyipcom/polyartbot/cdn/storage"
+	"github.com/johnnyipcom/polyartbot/glue"
 
 	"github.com/johnnyipcom/polyartbot/rabbitmq"
 
@@ -26,7 +27,6 @@ type imageService struct {
 	storage   storage.Storage
 	rabbitMQ  *rabbitmq.RabbitMQ
 	imageAMQP *rabbitmq.AMQP
-	once      sync.Once
 }
 
 var _ ImageService = &imageService{}
@@ -38,7 +38,7 @@ func NewImageService(cfg config.Config, s storage.Storage, r *rabbitmq.RabbitMQ,
 	}
 
 	return &imageService{
-		log:       log,
+		log:       log.Named("imageService"),
 		storage:   s,
 		rabbitMQ:  r,
 		imageAMQP: rabbitmq.NewAMQP(amqpConfig, r, log),
@@ -46,6 +46,7 @@ func NewImageService(cfg config.Config, s storage.Storage, r *rabbitmq.RabbitMQ,
 }
 
 func (i *imageService) Upload(file multipart.File, header multipart.FileHeader) (string, int, error) {
+	i.log.Info("Uploading files...")
 	data, err := io.ReadAll(file)
 	if err != nil {
 		return "", 0, err
@@ -60,17 +61,29 @@ func (i *imageService) Upload(file multipart.File, header multipart.FileHeader) 
 }
 
 func (i *imageService) Publish(fileID string) error {
+	i.log.Info("Publishing file...", zap.String("fileID", fileID))
+	u := glue.UploadImage{
+		FileID: fileID,
+	}
+
+	body, err := json.Marshal(u)
+	if err != nil {
+		return err
+	}
+
 	return i.imageAMQP.Publish(rabbitmq.Message{
 		MessageID:   fileID,
-		ContentType: "text/plain",
-		Body:        []byte(fileID),
+		ContentType: "application/json",
+		Body:        body,
 	})
 }
 
 func (i *imageService) Download(fileID string) ([]byte, error) {
+	i.log.Info("Downloading file...", zap.String("fileID", fileID))
 	return i.storage.Download(fileID)
 }
 
 func (i *imageService) Delete(fileID string) error {
+	i.log.Info("Deleting file...", zap.String("fileID", fileID))
 	return i.storage.Delete(fileID)
 }

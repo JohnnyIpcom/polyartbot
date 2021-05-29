@@ -20,7 +20,7 @@ func NewConnection(cfg config.RabbitMQ, c *amqp.Connection, log *zap.Logger) *Co
 		Connection: c,
 
 		cfg: cfg.Reconnect,
-		log: log,
+		log: log.Named("connection"),
 	}
 }
 
@@ -40,7 +40,6 @@ func (c *Connection) reconnect(channel *Channel) {
 	for {
 		err, ok := <-channel.NotifyClose(make(chan *amqp.Error))
 		if !ok || channel.IsClosed() {
-			c.log.Info("channel closed")
 			channel.Close()
 			break
 		}

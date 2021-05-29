@@ -22,7 +22,7 @@ type RabbitMQ struct {
 func New(cfg config.RabbitMQ, log *zap.Logger) *RabbitMQ {
 	return &RabbitMQ{
 		cfg: cfg,
-		log: log,
+		log: log.Named("rabbitMQ"),
 
 		dialConfig: amqp.Config{
 			Properties: amqp.Table{
