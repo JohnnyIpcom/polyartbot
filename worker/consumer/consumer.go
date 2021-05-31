@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/johnnyipcom/polyartbot/glue"
 	"github.com/johnnyipcom/polyartbot/rabbitmq"
 
 	"github.com/johnnyipcom/polyartbot/worker/config"
@@ -95,7 +94,11 @@ func (c *Consumer) processMessage(msg rabbitmq.Message) <-chan error {
 			return
 		}
 
-		var u glue.UploadImage
+		type uploadImage struct {
+			FileID string `json:"fileID"`
+		}
+
+		var u uploadImage
 		if err := json.Unmarshal(msg.Body, &u); err != nil {
 			out <- err
 			return

@@ -1,4 +1,4 @@
-package glue
+package utils
 
 type RespGet interface {
 	Message() string
