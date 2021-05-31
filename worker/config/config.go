@@ -9,6 +9,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type Polyart struct {
+	Steps int `yaml:"steps" default:"300"`
+	Shape int `yaml:"shape" default:"1"`
+}
+
 // Consumer ...
 type Consumer struct {
 	Processors   int    `yaml:"processors" default:"1"`
@@ -17,6 +22,7 @@ type Consumer struct {
 
 // Config ...
 type Config struct {
+	Polyart  Polyart       `yaml:"polyart"`
 	Consumer Consumer      `yaml:"consumer"`
 	Client   pcfg.Client   `yaml:"client"`
 	RabbitMQ pcfg.RabbitMQ `yaml:"rabbitMQ"`

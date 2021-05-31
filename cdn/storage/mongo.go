@@ -6,10 +6,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/johnnyipcom/polyartbot/cdn/config"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
+
+	"go.mongodb.org/mongo-driver/x/bsonx"
+	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 	"go.uber.org/zap"
 )
 
@@ -18,6 +22,7 @@ type Mongo struct {
 	log    *zap.Logger
 	client *mongo.Client
 	db     *mongo.Database
+	bucket *gridfs.Bucket
 }
 
 func NewMongo(cfg config.Config, log *zap.Logger) (Storage, error) {
@@ -44,6 +49,13 @@ func (s *Mongo) Connect(ctx context.Context) error {
 	}
 
 	s.db = s.client.Database(s.cfg.DBName)
+
+	bucket, err := gridfs.NewBucket(s.db)
+	if err != nil {
+		return err
+	}
+
+	s.bucket = bucket
 	return nil
 }
 
@@ -52,14 +64,17 @@ func (s *Mongo) Disconnect(ctx context.Context) error {
 	return s.client.Disconnect(ctx)
 }
 
-func (s *Mongo) Upload(name string, p []byte) (string, error) {
-	bucket, err := gridfs.NewBucket(s.db)
-	if err != nil {
-		return "", err
+func (s *Mongo) Upload(name string, p []byte, doc map[string]string) (string, error) {
+	metadata := make(bsonx.Doc, 0)
+	for key, val := range doc {
+		metadata = metadata.Append(key, bsonx.String(val))
 	}
 
+	opts := options.GridFSUpload()
+	opts.SetMetadata(metadata)
+
 	fileID := uuid.New()
-	uploadStream, err := bucket.OpenUploadStreamWithID(fileID, name)
+	uploadStream, err := s.bucket.OpenUploadStreamWithID(fileID, name, opts)
 	if err != nil {
 		return "", err
 	}
@@ -72,14 +87,35 @@ func (s *Mongo) Upload(name string, p []byte) (string, error) {
 	return fileID.String(), nil
 }
 
-func (s *Mongo) Download(fileID string) ([]byte, error) {
-	s.log.Info("Downloading file...", zap.String("fileID", fileID))
-	bucket, err := gridfs.NewBucket(s.db)
+func (s *Mongo) GetMetadata(fileID string) (map[string]string, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	id, err := convertFileID(uuid.MustParse(fileID))
 	if err != nil {
 		return nil, err
 	}
 
-	downloadStream, err := bucket.OpenDownloadStream(uuid.MustParse(fileID))
+	res := s.bucket.GetFilesCollection().FindOne(ctx, bsonx.Doc{{Key: "_id", Value: id}})
+	if res.Err() != nil {
+		return nil, res.Err()
+	}
+
+	type metadataOwner struct {
+		Metadata map[string]string `json:"metadata"`
+	}
+
+	var m metadataOwner
+	if err := res.Decode(&m); err != nil {
+		return nil, err
+	}
+
+	return m.Metadata, nil
+}
+
+func (s *Mongo) Download(fileID string) ([]byte, error) {
+	s.log.Info("Downloading file...", zap.String("fileID", fileID))
+	downloadStream, err := s.bucket.OpenDownloadStream(uuid.MustParse(fileID))
 	if err != nil {
 		return nil, err
 	}
@@ -96,10 +132,27 @@ func (s *Mongo) Download(fileID string) ([]byte, error) {
 
 func (s *Mongo) Delete(fileID string) error {
 	s.log.Info("Deleting file...", zap.String("fileID", fileID))
-	bucket, err := gridfs.NewBucket(s.db)
-	if err != nil {
-		return err
+	return s.bucket.Delete(uuid.MustParse(fileID))
+}
+
+type _convertFileID struct {
+	ID interface{} `bson:"_id"`
+}
+
+func convertFileID(fileID interface{}) (bsonx.Val, error) {
+	id := _convertFileID{
+		ID: fileID,
 	}
 
-	return bucket.Delete(uuid.MustParse(fileID))
+	b, err := bson.Marshal(id)
+	if err != nil {
+		return bsonx.Val{}, err
+	}
+
+	val := bsoncore.Document(b).Lookup("_id")
+
+	var res bsonx.Val
+	err = res.UnmarshalBSONValue(val.Type, val.Data)
+
+	return res, err
 }

@@ -5,7 +5,8 @@ import (
 )
 
 type ImageStorage interface {
-	Upload(name string, bytes []byte) (string, error)
+	Upload(name string, bytes []byte, metadata map[string]string) (string, error)
+	GetMetadata(fileID string) (map[string]string, error)
 	Download(fileID string) ([]byte, error)
 	Delete(fileID string) error
 }

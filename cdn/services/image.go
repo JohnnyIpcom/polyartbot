@@ -12,12 +12,14 @@ import (
 
 	"github.com/johnnyipcom/polyartbot/rabbitmq"
 
+	"github.com/h2non/filetype"
 	"go.uber.org/zap"
 )
 
 type ImageService interface {
 	Upload(multipart.File, multipart.FileHeader) (string, int, error)
 	Publish(fileID string) error
+	GetMetadata(fileID string) (map[string]string, error)
 	Download(fileID string) ([]byte, error)
 	Delete(fileID string) error
 }
@@ -52,7 +54,15 @@ func (i *imageService) Upload(file multipart.File, header multipart.FileHeader) 
 		return "", 0, err
 	}
 
-	fileID, err := i.storage.Upload(header.Filename, data)
+	kind, err := filetype.Match(data)
+	if err != nil {
+		return "", 0, err
+	}
+
+	doc := make(map[string]string)
+	doc["MIME"] = kind.MIME.Value
+
+	fileID, err := i.storage.Upload(header.Filename, data, doc)
 	if err != nil {
 		return "", 0, err
 	}
@@ -76,6 +86,11 @@ func (i *imageService) Publish(fileID string) error {
 		ContentType: "application/json",
 		Body:        body,
 	})
+}
+
+func (i *imageService) GetMetadata(fileID string) (map[string]string, error) {
+	i.log.Info("Getting metadata from file...", zap.String("fileID", fileID))
+	return i.storage.GetMetadata(fileID)
 }
 
 func (i *imageService) Download(fileID string) ([]byte, error) {

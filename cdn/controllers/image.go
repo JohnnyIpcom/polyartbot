@@ -29,6 +29,13 @@ func NewImageController(image services.ImageService) ImageController {
 func (i *imageController) Post(c *gin.Context) {
 	var results []glue.RespFile
 
+	userFrom, userTo := c.Query("from"), c.Query("to")
+	if userFrom == "" && userTo == "" {
+		restErr := glue.NewBadRequestError("'from' or 'to' should either be non-nil")
+		c.JSON(restErr.Status(), restErr)
+		return
+	}
+
 	form, _ := c.MultipartForm()
 	headers := form.File["file"]
 
@@ -57,14 +64,23 @@ func (i *imageController) Post(c *gin.Context) {
 }
 
 func (i *imageController) Get(c *gin.Context) {
-	data, err := i.image.Download(c.Param("filename"))
+	fileID := c.Param("filename")
+
+	data, err := i.image.Download(fileID)
 	if err != nil {
 		restErr := glue.NewBadRequestError(err.Error())
 		c.JSON(restErr.Status(), restErr)
 		return
 	}
 
-	respGet := glue.NewFileGet("File returned successfully", data)
+	metadata, err := i.image.GetMetadata(fileID)
+	if err != nil {
+		restErr := glue.NewInternalServerError("Metadata error", err)
+		c.JSON(restErr.Status(), restErr)
+		return
+	}
+
+	respGet := glue.NewFileGet("File returned successfully", data, metadata)
 	c.JSON(http.StatusOK, respGet)
 }
 

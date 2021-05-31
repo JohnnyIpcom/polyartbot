@@ -22,10 +22,11 @@ type Consumer struct {
 	rabbitMQ  *rabbitmq.RabbitMQ
 	imageAMQP *rabbitmq.AMQP
 	imageServ services.ImageService
+	polyServ  services.PolyartService
 	tomb      tomb.Tomb
 }
 
-func New(cfg config.Config, r *rabbitmq.RabbitMQ, i services.ImageService, log *zap.Logger) (*Consumer, error) {
+func New(cfg config.Config, r *rabbitmq.RabbitMQ, i services.ImageService, p services.PolyartService, log *zap.Logger) (*Consumer, error) {
 	amqpConfig, ok := cfg.RabbitMQ.AMQPs["image.upload"]
 	if !ok {
 		return nil, errors.New("no valid 'image.upload' config")
@@ -87,6 +88,8 @@ func (c *Consumer) processMessage(msg rabbitmq.Message) <-chan error {
 	out := make(chan error)
 
 	go func() {
+		defer close(out)
+
 		if msg.ContentType != "application/json" {
 			out <- errors.New("unknown content type")
 			return
@@ -98,13 +101,17 @@ func (c *Consumer) processMessage(msg rabbitmq.Message) <-chan error {
 			return
 		}
 
-		_, err := c.imageServ.Download(u.FileID)
+		data, err := c.imageServ.Download(u.FileID)
 		if err != nil {
 			out <- err
 			return
 		}
 
-		out <- nil
+		_, err = c.polyServ.Convert(data)
+		if err != nil {
+			out <- err
+			return
+		}
 	}()
 
 	return out

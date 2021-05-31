@@ -67,6 +67,7 @@ func main() {
 		fx.Provide(consumer.New),
 		fx.Provide(client.New),
 		fx.Provide(services.NewImageService),
+		fx.Provide(services.NewPolyartService),
 		fx.Invoke(register),
 	).Run()
 }

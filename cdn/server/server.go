@@ -6,6 +6,7 @@ import (
 
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/johnnyipcom/polyartbot/cdn/config"
 	"github.com/johnnyipcom/polyartbot/cdn/controllers"
 	"go.uber.org/zap"
@@ -21,6 +22,8 @@ type Server struct {
 }
 
 func New(cfg config.Config, log *zap.Logger, health controllers.HealthController, image controllers.ImageController) (*Server, error) {
+	binding.Validator = new(defaultValidator)
+
 	router := gin.New()
 	router.Use(ginzap.Ginzap(log, time.RFC3339, true))
 	router.Use(ginzap.RecoveryWithZap(log, true))
