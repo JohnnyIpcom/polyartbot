@@ -1,33 +1,23 @@
 package services
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/johnnyipcom/polyartbot/cdn/config"
-	"github.com/johnnyipcom/polyartbot/cdn/models"
 	"go.uber.org/zap"
 )
 
 type JWTService interface {
-	GenerateTokens(name string, admin bool) (*models.JWTToken, *models.JWTToken, error)
-	ExtractTokenMetadata(tokenString string, access bool) (string, string, error)
-	VerifyToken(tokenString string, access bool) (*jwt.Token, error)
-	TokenValid(tokenString string, access bool) error
+	GenerateToken(name string, admin bool) (string, error)
+	ValidateToken(tokenString string) (*jwt.Token, error)
 }
 
-type jwtAccessClaims struct {
+// jwtCustomClaims are custom claims extending default ones.
+type jwtCustomClaims struct {
 	Name  string `json:"name"`
 	Admin bool   `json:"admin"`
-	UUID  string `json:"access_uuid"`
-	jwt.StandardClaims
-}
-
-type jwtRefreshClaims struct {
-	Name string `json:"name"`
-	UUID string `json:"refresh_uuid"`
 	jwt.StandardClaims
 }
 
@@ -43,94 +33,33 @@ func NewJWTService(cfg config.Config, log *zap.Logger) JWTService {
 	}
 }
 
-func (j *jwtService) GenerateTokens(username string, admin bool) (*models.JWTToken, *models.JWTToken, error) {
-	j.log.Info("Generating tokens...", zap.String("username", username), zap.Bool("admin", admin))
-	var err error
-
-	accessToken := models.NewToken(j.cfg.Access.Expires)
-	accessToken.Token, err = jwt.NewWithClaims(jwt.SigningMethodHS256, &jwtAccessClaims{
-		Name:  username,
-		Admin: admin,
-		UUID:  accessToken.UUID,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: accessToken.ExpiresAt,
+func (j *jwtService) GenerateToken(username string, admin bool) (string, error) {
+	j.log.Info("Generating token...", zap.String("username", username), zap.Bool("admin", admin))
+	claims := &jwtCustomClaims{
+		username,
+		admin,
+		jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(j.cfg.Expires).Unix(),
 			Issuer:    j.cfg.Issuer,
 			IssuedAt:  time.Now().Unix(),
 		},
-	}).SignedString([]byte(j.cfg.Access.Secret))
-	if err != nil {
-		return nil, nil, err
 	}
 
-	refreshToken := models.NewToken(j.cfg.Refresh.Expires)
-	refreshToken.Token, err = jwt.NewWithClaims(jwt.SigningMethodHS256, &jwtRefreshClaims{
-		Name: username,
-		UUID: refreshToken.UUID,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: refreshToken.ExpiresAt,
-			Issuer:    j.cfg.Issuer,
-			IssuedAt:  time.Now().Unix(),
-		},
-	}).SignedString([]byte(j.cfg.Refresh.Secret))
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	t, err := token.SignedString([]byte(j.cfg.Secret))
 	if err != nil {
-		return nil, nil, err
+		return "", err
 	}
 
-	return accessToken, refreshToken, nil
+	return t, nil
 }
 
-func (j *jwtService) ExtractTokenMetadata(tokenString string, access bool) (string, string, error) {
-	token, err := j.VerifyToken(tokenString, access)
-	if err != nil {
-		return "", "", err
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
-		return "", "", err
-	}
-
-	uuidField := "refresh_uuid"
-	if access {
-		uuidField = "access_uuid"
-	}
-
-	uuid, ok := claims[uuidField].(string)
-	if !ok {
-		return "", "", err
-	}
-
-	name, ok := claims["name"].(string)
-	if !ok {
-		return "", "", err
-	}
-
-	return uuid, name, nil
-}
-
-func (j *jwtService) VerifyToken(tokenString string, access bool) (*jwt.Token, error) {
+func (j *jwtService) ValidateToken(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-
-		if access {
-			return []byte(j.cfg.Access.Secret), nil
-		} else {
-			return []byte(j.cfg.Refresh.Secret), nil
-		}
+		return []byte(j.cfg.Secret), nil
 	})
-}
-
-func (j *jwtService) TokenValid(tokenString string, access bool) error {
-	token, err := j.VerifyToken(tokenString, access)
-	if err != nil {
-		return err
-	}
-
-	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
-		return errors.New("invalid token")
-	}
-
-	return nil
 }

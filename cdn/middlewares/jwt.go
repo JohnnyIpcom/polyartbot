@@ -13,14 +13,16 @@ func AuthorizeJWT(j services.JWTService) gin.HandlerFunc {
 		const BEARER_SCHEMA = "Bearer "
 		authHeader := c.GetHeader("Authorization")
 		if !strings.HasPrefix(authHeader, BEARER_SCHEMA) {
-			restErr := utils.NewUnauthorizedError("no valid authorization bearer", nil)
+			restErr := utils.NewUnauthorizedError("No Authorization token in header", nil)
 			c.AbortWithStatusJSON(restErr.Status(), restErr)
 			return
 		}
 
-		token := authHeader[len(BEARER_SCHEMA):]
-		if err := j.TokenValid(token, true); err != nil {
-			restErr := utils.NewUnauthorizedError("unauthorized", err)
+		tokenString := authHeader[len(BEARER_SCHEMA):]
+
+		token, err := j.ValidateToken(tokenString)
+		if !token.Valid {
+			restErr := utils.NewUnauthorizedError("Unathorized!", err)
 			c.AbortWithStatusJSON(restErr.Status(), restErr)
 		}
 	}
