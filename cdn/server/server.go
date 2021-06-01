@@ -52,12 +52,15 @@ func New(cfg config.Config, log *zap.Logger, h controllers.HealthController, i c
 func (s *Server) initRoutes() error {
 	s.router.GET("/health", s.health.Health)
 
-	s.router.POST("/login", s.login.Login)
+	user := s.router.Group("user")
+	user.POST("/login", s.login.Login)
+	user.POST("/logout", s.login.Logout)
+	user.POST("/refresh", s.login.Refresh)
 
-	v1 := s.router.Group("cdn", middlewares.AuthorizeJWT(s.jwt))
-	v1.POST("/image", s.image.Post)
-	v1.GET("/image/:filename", s.image.Get)
-	v1.DELETE("/image/:filename", s.image.Delete)
+	cdn := s.router.Group("cdn", middlewares.AuthorizeJWT(s.jwt))
+	cdn.POST("/image", s.image.Post)
+	cdn.GET("/image/:filename", s.image.Get)
+	cdn.DELETE("/image/:filename", s.image.Delete)
 
 	return nil
 }

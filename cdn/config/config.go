@@ -10,10 +10,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type Token struct {
+	Secret  string        `yaml:"secret"`
+	Expires time.Duration `yaml:"expires"`
+}
+
 type JWT struct {
-	Secret  string        `yaml:"secret" default:"secret"`
-	Issuer  string        `yaml:"issuer" default:"polyartbot"`
-	Expires time.Duration `yaml:"expires" default:"24h"`
+	Access  Token  `yaml:"access"`
+	Refresh Token  `yaml:"refresh"`
+	Issuer  string `yaml:"issuer" default:"polyartbot"`
 }
 
 // Server ...
@@ -25,13 +30,20 @@ type Server struct {
 // Mongo ...
 type Mongo struct {
 	URI    string `yaml:"uri"`
-	DBName string `yaml:"dbName"`
+	DBName string `yaml:"dbName" default:"polyartbot"`
+}
+
+// Redis ...
+type Redis struct {
+	URI    string `yaml:"uri"`
+	DBName string `yaml:"dbName" default:"polyartbot"`
 }
 
 // Config ...
 type Config struct {
 	Server   Server        `yaml:"server"`
 	Mongo    Mongo         `yaml:"mongo"`
+	Redis    Redis         `yaml:"redis"`
 	RabbitMQ pcfg.RabbitMQ `yaml:"rabbitMQ"`
 	Logger   pcfg.Logger   `yaml:"logger"`
 }

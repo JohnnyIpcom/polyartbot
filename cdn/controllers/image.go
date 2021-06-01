@@ -29,13 +29,6 @@ func NewImageController(image services.ImageService) ImageController {
 func (i *imageController) Post(c *gin.Context) {
 	var results []utils.RespFile
 
-	userFrom, userTo := c.Query("from"), c.Query("to")
-	if userFrom == "" && userTo == "" {
-		restErr := utils.NewBadRequestError("'from' or 'to' should either be non-nil")
-		c.JSON(restErr.Status(), restErr)
-		return
-	}
-
 	form, _ := c.MultipartForm()
 	headers := form.File["file"]
 
