@@ -1,4 +1,4 @@
-package utils
+package glue
 
 import (
 	"fmt"
@@ -53,19 +53,6 @@ func NewInternalServerError(msg string, err error) RespError {
 		ErrMessage: msg,
 		ErrStatus:  http.StatusInternalServerError,
 		ErrError:   "internal_server_error",
-	}
-	if err != nil {
-		result.ErrCauses = append(result.ErrCauses, err.Error())
-	}
-	return result
-}
-
-// NewUnauthorizedError ...
-func NewUnauthorizedError(msg string, err error) RespError {
-	result := RespError{
-		ErrMessage: msg,
-		ErrStatus:  http.StatusUnauthorized,
-		ErrError:   "unauthorized_error",
 	}
 	if err != nil {
 		result.ErrCauses = append(result.ErrCauses, err.Error())

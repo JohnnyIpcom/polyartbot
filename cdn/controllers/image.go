@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/johnnyipcom/polyartbot/cdn/services"
-	"github.com/johnnyipcom/polyartbot/cdn/utils"
+	"github.com/johnnyipcom/polyartbot/glue"
 )
 
 type ImageController interface {
@@ -27,11 +27,11 @@ func NewImageController(image services.ImageService) ImageController {
 }
 
 func (i *imageController) Post(c *gin.Context) {
-	var results []utils.RespFile
+	var results []glue.RespFile
 
 	userFrom, userTo := c.Query("from"), c.Query("to")
 	if userFrom == "" && userTo == "" {
-		restErr := utils.NewBadRequestError("'from' or 'to' should either be non-nil")
+		restErr := glue.NewBadRequestError("'from' or 'to' should either be non-nil")
 		c.JSON(restErr.Status(), restErr)
 		return
 	}
@@ -43,18 +43,18 @@ func (i *imageController) Post(c *gin.Context) {
 		file, _ := header.Open()
 		fileID, size, err := i.image.Upload(file, *header)
 		if err != nil {
-			restErr := utils.NewBadRequestError(err.Error())
+			restErr := glue.NewBadRequestError(err.Error())
 			c.JSON(restErr.Status(), restErr)
 			return
 		}
 
 		if err := i.image.Publish(fileID); err != nil {
-			restErr := utils.NewInternalServerError("Can't post ID to RabbitMQ", err)
+			restErr := glue.NewInternalServerError("Can't post ID to RabbitMQ", err)
 			c.JSON(restErr.Status(), restErr)
 			return
 		}
 
-		results = append(results, utils.NewFileResponse(fileID, size))
+		results = append(results, glue.NewFileResponse(fileID, size))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -68,26 +68,26 @@ func (i *imageController) Get(c *gin.Context) {
 
 	data, err := i.image.Download(fileID)
 	if err != nil {
-		restErr := utils.NewBadRequestError(err.Error())
+		restErr := glue.NewBadRequestError(err.Error())
 		c.JSON(restErr.Status(), restErr)
 		return
 	}
 
 	metadata, err := i.image.GetMetadata(fileID)
 	if err != nil {
-		restErr := utils.NewInternalServerError("Metadata error", err)
+		restErr := glue.NewInternalServerError("Metadata error", err)
 		c.JSON(restErr.Status(), restErr)
 		return
 	}
 
-	respGet := utils.NewFileGet("File returned successfully", data, metadata)
+	respGet := glue.NewFileGet("File returned successfully", data, metadata)
 	c.JSON(http.StatusOK, respGet)
 }
 
 func (i *imageController) Delete(c *gin.Context) {
 	err := i.image.Delete(c.Param("filename"))
 	if err != nil {
-		restErr := utils.NewBadRequestError(err.Error())
+		restErr := glue.NewBadRequestError(err.Error())
 		c.JSON(restErr.Status(), restErr)
 		return
 	}

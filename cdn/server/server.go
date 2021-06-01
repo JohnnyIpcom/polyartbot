@@ -9,8 +9,6 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/johnnyipcom/polyartbot/cdn/config"
 	"github.com/johnnyipcom/polyartbot/cdn/controllers"
-	"github.com/johnnyipcom/polyartbot/cdn/middlewares"
-	"github.com/johnnyipcom/polyartbot/cdn/services"
 	"go.uber.org/zap"
 )
 
@@ -20,12 +18,10 @@ type Server struct {
 
 	health controllers.HealthController
 	image  controllers.ImageController
-	login  controllers.LoginController
-	jwt    services.JWTService
 	router *gin.Engine
 }
 
-func New(cfg config.Config, log *zap.Logger, h controllers.HealthController, i controllers.ImageController, l controllers.LoginController, j services.JWTService) (*Server, error) {
+func New(cfg config.Config, log *zap.Logger, health controllers.HealthController, image controllers.ImageController) (*Server, error) {
 	binding.Validator = new(defaultValidator)
 
 	router := gin.New()
@@ -35,10 +31,8 @@ func New(cfg config.Config, log *zap.Logger, h controllers.HealthController, i c
 	server := &Server{
 		cfg:    cfg.Server,
 		log:    log,
-		health: h,
-		image:  i,
-		login:  l,
-		jwt:    j,
+		health: health,
+		image:  image,
 		router: router,
 	}
 
@@ -52,9 +46,7 @@ func New(cfg config.Config, log *zap.Logger, h controllers.HealthController, i c
 func (s *Server) initRoutes() error {
 	s.router.GET("/health", s.health.Health)
 
-	s.router.POST("/login", s.login.Login)
-
-	v1 := s.router.Group("cdn", middlewares.AuthorizeJWT(s.jwt))
+	v1 := s.router.Group("v1")
 	v1.POST("/image", s.image.Post)
 	v1.GET("/image/:filename", s.image.Get)
 	v1.DELETE("/image/:filename", s.image.Delete)

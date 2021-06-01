@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"regexp"
 
 	"github.com/johnnyipcom/polyartbot/config"
+	"github.com/johnnyipcom/polyartbot/glue"
 	"go.uber.org/zap"
 )
 
@@ -98,14 +98,10 @@ func extractOk(data []byte) error {
 		return nil
 	}
 
-	type respError struct {
-		ErrError string `json:"error"`
-	}
-
-	var respErr respError
+	var respErr glue.RespError
 	if err := json.Unmarshal(data, &respErr); err != nil {
 		return err
 	}
 
-	return errors.New(respErr.ErrError)
+	return respErr
 }

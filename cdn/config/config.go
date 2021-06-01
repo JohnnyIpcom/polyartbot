@@ -2,7 +2,6 @@ package config
 
 import (
 	"os"
-	"time"
 
 	pcfg "github.com/johnnyipcom/polyartbot/config"
 
@@ -10,16 +9,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type JWT struct {
-	Secret  string        `yaml:"secret" default:"secret"`
-	Issuer  string        `yaml:"issuer" default:"polyartbot"`
-	Expires time.Duration `yaml:"expires" default:"24h"`
-}
-
 // Server ...
 type Server struct {
 	Addr string `yaml:"addr" default:":8080"`
-	JWT  JWT    `yaml:"jwt"`
 }
 
 // Mongo ...

@@ -4,7 +4,6 @@ go 1.16
 
 require (
 	github.com/creasty/defaults v1.5.1
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/fogleman/primitive v0.0.0-20200504002142-0373c216458b
 	github.com/gin-contrib/zap v0.0.1

@@ -8,6 +8,7 @@ import (
 
 	"github.com/johnnyipcom/polyartbot/cdn/config"
 	"github.com/johnnyipcom/polyartbot/cdn/storage"
+	"github.com/johnnyipcom/polyartbot/glue"
 
 	"github.com/johnnyipcom/polyartbot/rabbitmq"
 
@@ -71,12 +72,10 @@ func (i *imageService) Upload(file multipart.File, header multipart.FileHeader) 
 
 func (i *imageService) Publish(fileID string) error {
 	i.log.Info("Publishing file...", zap.String("fileID", fileID))
-
-	type uploadImage struct {
-		FileID string `json:"fileID"`
+	u := glue.UploadImage{
+		FileID: fileID,
 	}
 
-	u := uploadImage{FileID: fileID}
 	body, err := json.Marshal(u)
 	if err != nil {
 		return err
