@@ -13,31 +13,47 @@ import (
 	"github.com/johnnyipcom/polyartbot/config"
 	"github.com/johnnyipcom/polyartbot/glue"
 	"go.uber.org/zap"
+	"golang.org/x/oauth2/clientcredentials"
 )
 
 type Client struct {
-	log *zap.Logger
-	url *url.URL
-	c   *http.Client
+	log     *zap.Logger
+	baseURL *url.URL
+	c       *http.Client
 }
 
 func New(cfg config.Client, log *zap.Logger) (*Client, error) {
-	url, err := url.Parse(cfg.URL)
+	baseURL, err := url.Parse(cfg.URL)
 	if err != nil {
 		return nil, err
 	}
 
+	scopes := make([]string, len(cfg.OAuth2.Scopes))
+	copy(scopes, cfg.OAuth2.Scopes)
+
+	tokenURL, err := baseURL.Parse(cfg.OAuth2.TokenURL)
+	if err != nil {
+		return nil, err
+	}
+
+	cCfg := clientcredentials.Config{
+		ClientID:     cfg.OAuth2.ClientID,
+		ClientSecret: cfg.OAuth2.ClientSecret,
+		Scopes:       scopes,
+		TokenURL:     tokenURL.String(),
+	}
+
 	return &Client{
-		log: log.Named("client"),
-		url: url,
-		c:   http.DefaultClient,
+		log:     log.Named("client"),
+		baseURL: baseURL,
+		c:       cCfg.Client(context.Background()),
 	}, nil
 }
 
 var errorRx = regexp.MustCompile(`{.+"error":(\d+),?}`)
 
 func (c *Client) Raw(ctx context.Context, method string, url string, payload interface{}) ([]byte, error) {
-	u, err := c.url.Parse(url)
+	u, err := c.baseURL.Parse(url)
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +89,11 @@ func (c *Client) Raw(ctx context.Context, method string, url string, payload int
 	return data, extractOk(data)
 }
 
-func (c *Client) Get(ctx context.Context, fileID string) ([]byte, error) {
-	url := fmt.Sprintf("/v1/image/%s", fileID)
+func (c *Client) GetImage(ctx context.Context, fileID string) (string, []byte, error) {
+	url := fmt.Sprintf("/cdn/image/%s", fileID)
 	data, err := c.Raw(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	type respGet struct {
@@ -87,10 +103,28 @@ func (c *Client) Get(ctx context.Context, fileID string) ([]byte, error) {
 
 	var r respGet
 	if err := json.Unmarshal(data, &r); err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
-	return r.RespData, nil
+	return r.RespMessage, r.RespData, nil
+}
+
+func (c *Client) Health(ctx context.Context) (string, error) {
+	data, err := c.Raw(ctx, http.MethodGet, "/health", nil)
+	if err != nil {
+		return "", err
+	}
+
+	type respHealth struct {
+		RespMessage string `json:"status"`
+	}
+
+	var r respHealth
+	if err := json.Unmarshal(data, &r); err != nil {
+		return "", err
+	}
+
+	return r.RespMessage, nil
 }
 
 func extractOk(data []byte) error {

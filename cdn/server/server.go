@@ -4,11 +4,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/johnnyipcom/polyartbot/cdn/config"
+	"github.com/johnnyipcom/polyartbot/cdn/controllers"
+
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/johnnyipcom/polyartbot/cdn/config"
-	"github.com/johnnyipcom/polyartbot/cdn/controllers"
 	"go.uber.org/zap"
 )
 
@@ -18,10 +19,11 @@ type Server struct {
 
 	health controllers.HealthController
 	image  controllers.ImageController
+	oAuth2 controllers.OAuth2Controller
 	router *gin.Engine
 }
 
-func New(cfg config.Config, log *zap.Logger, health controllers.HealthController, image controllers.ImageController) (*Server, error) {
+func New(cfg config.Config, log *zap.Logger, health controllers.HealthController, image controllers.ImageController, o controllers.OAuth2Controller) (*Server, error) {
 	binding.Validator = new(defaultValidator)
 
 	router := gin.New()
@@ -33,6 +35,7 @@ func New(cfg config.Config, log *zap.Logger, health controllers.HealthController
 		log:    log,
 		health: health,
 		image:  image,
+		oAuth2: o,
 		router: router,
 	}
 
@@ -46,10 +49,18 @@ func New(cfg config.Config, log *zap.Logger, health controllers.HealthController
 func (s *Server) initRoutes() error {
 	s.router.GET("/health", s.health.Health)
 
-	v1 := s.router.Group("v1")
-	v1.POST("/image", s.image.Post)
-	v1.GET("/image/:filename", s.image.Get)
-	v1.DELETE("/image/:filename", s.image.Delete)
+	auth := s.router.Group("oauth2")
+	{
+		auth.POST("/token", s.oAuth2.Token)
+		auth.POST("/authorize", s.oAuth2.Authorize)
+	}
+
+	cdn := s.router.Group("cdn", s.oAuth2.VerifyMiddleware())
+	{
+		cdn.POST("/image", s.image.Post)
+		cdn.GET("/image/:filename", s.image.Get)
+		cdn.DELETE("/image/:filename", s.image.Delete)
+	}
 
 	return nil
 }

@@ -19,5 +19,7 @@ func NewHealthController() HealthController {
 }
 
 func (h *healthController) Health(c *gin.Context) {
-	c.String(http.StatusOK, "OK")
+	c.JSON(http.StatusOK, gin.H{
+		"status": "OK",
+	})
 }

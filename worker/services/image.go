@@ -32,7 +32,7 @@ func (i *imageService) Download(fileID string) ([]byte, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	data, err := i.client.Get(ctx, fileID)
+	_, data, err := i.client.GetImage(ctx, fileID)
 	if err != nil {
 		return nil, err
 	}

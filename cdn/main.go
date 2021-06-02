@@ -72,6 +72,7 @@ func main() {
 		fx.Provide(rabbitmq.New),
 		fx.Provide(controllers.NewHealthController),
 		fx.Provide(controllers.NewImageController),
+		fx.Provide(controllers.NewOAuth2Controller),
 		fx.Provide(services.NewImageService),
 		fx.Provide(server.New),
 		fx.Invoke(register),

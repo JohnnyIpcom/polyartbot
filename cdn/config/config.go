@@ -9,9 +9,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type OAuth2Client struct {
+	ID     string `yaml:"id"`
+	Secret string `yaml:"secret"`
+	Domain string `yaml:"domain"`
+}
+
+type OAuth2 struct {
+	Clients []OAuth2Client `yaml:"clients"`
+}
+
 // Server ...
 type Server struct {
-	Addr string `yaml:"addr" default:":8080"`
+	Addr   string `yaml:"addr" default:":8080"`
+	OAuth2 OAuth2 `yaml:"oauth2"`
 }
 
 // Mongo ...
@@ -20,10 +31,17 @@ type Mongo struct {
 	DBName string `yaml:"dbName"`
 }
 
+// Redis ...
+type Redis struct {
+	URI string `yaml:"uri"`
+	DB  int    `yaml:"db"`
+}
+
 // Config ...
 type Config struct {
 	Server   Server        `yaml:"server"`
 	Mongo    Mongo         `yaml:"mongo"`
+	Redis    Redis         `yaml:"redis"`
 	RabbitMQ pcfg.RabbitMQ `yaml:"rabbitMQ"`
 	Logger   pcfg.Logger   `yaml:"logger"`
 }
