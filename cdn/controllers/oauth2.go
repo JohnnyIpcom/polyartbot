@@ -81,6 +81,11 @@ func (o *oAuth2Controller) Token(c *gin.Context) {
 
 func (o *oAuth2Controller) VerifyMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !o.cfg.OAuth2.Enabled {
+			c.Next()
+			return
+		}
+
 		token, err := o.server.ValidationBearerToken(c.Request)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{

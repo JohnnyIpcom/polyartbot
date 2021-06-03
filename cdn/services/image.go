@@ -1,91 +1,61 @@
 package services
 
 import (
-	"encoding/json"
-	"errors"
 	"io"
 	"mime/multipart"
 
 	"github.com/johnnyipcom/polyartbot/cdn/config"
 	"github.com/johnnyipcom/polyartbot/cdn/storage"
-	"github.com/johnnyipcom/polyartbot/glue"
-
-	"github.com/johnnyipcom/polyartbot/rabbitmq"
 
 	"github.com/h2non/filetype"
 	"go.uber.org/zap"
 )
 
 type ImageService interface {
-	Upload(multipart.File, multipart.FileHeader) (string, int, error)
-	Publish(fileID string) error
+	Upload(fileID string, file multipart.File, header multipart.FileHeader, metadata map[string]string) (int, error)
 	GetMetadata(fileID string) (map[string]string, error)
 	Download(fileID string) ([]byte, error)
 	Delete(fileID string) error
 }
 
 type imageService struct {
-	log       *zap.Logger
-	storage   storage.Storage
-	rabbitMQ  *rabbitmq.RabbitMQ
-	imageAMQP *rabbitmq.AMQP
+	log     *zap.Logger
+	storage storage.Storage
 }
 
 var _ ImageService = &imageService{}
 
-func NewImageService(cfg config.Config, s storage.Storage, r *rabbitmq.RabbitMQ, log *zap.Logger) (ImageService, error) {
-	amqpConfig, ok := cfg.RabbitMQ.AMQPs["image.upload"]
-	if !ok {
-		return nil, errors.New("no valid 'image.upload' config")
-	}
-
+func NewImageService(cfg config.Config, s storage.Storage, log *zap.Logger) ImageService {
 	return &imageService{
-		log:       log.Named("imageService"),
-		storage:   s,
-		rabbitMQ:  r,
-		imageAMQP: rabbitmq.NewAMQP(amqpConfig, r, log),
-	}, nil
+		log:     log.Named("imageService"),
+		storage: s,
+	}
 }
 
-func (i *imageService) Upload(file multipart.File, header multipart.FileHeader) (string, int, error) {
+func (i *imageService) Upload(fileID string, file multipart.File, header multipart.FileHeader, metadata map[string]string) (int, error) {
 	i.log.Info("Uploading files...")
 	data, err := io.ReadAll(file)
 	if err != nil {
-		return "", 0, err
+		return 0, err
 	}
 
 	kind, err := filetype.Match(data)
 	if err != nil {
-		return "", 0, err
+		return 0, err
 	}
 
 	doc := make(map[string]string)
 	doc["MIME"] = kind.MIME.Value
 
-	fileID, err := i.storage.Upload(header.Filename, data, doc)
-	if err != nil {
-		return "", 0, err
+	for key, value := range metadata {
+		doc[key] = value
 	}
 
-	return fileID, len(data), err
-}
-
-func (i *imageService) Publish(fileID string) error {
-	i.log.Info("Publishing file...", zap.String("fileID", fileID))
-	u := glue.UploadImage{
-		FileID: fileID,
+	if err := i.storage.Upload(fileID, header.Filename, data, doc); err != nil {
+		return 0, err
 	}
 
-	body, err := json.Marshal(u)
-	if err != nil {
-		return err
-	}
-
-	return i.imageAMQP.Publish(rabbitmq.Message{
-		MessageID:   fileID,
-		ContentType: "application/json",
-		Body:        body,
-	})
+	return len(data), err
 }
 
 func (i *imageService) GetMetadata(fileID string) (map[string]string, error) {

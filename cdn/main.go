@@ -74,6 +74,7 @@ func main() {
 		fx.Provide(controllers.NewImageController),
 		fx.Provide(controllers.NewOAuth2Controller),
 		fx.Provide(services.NewImageService),
+		fx.Provide(services.NewRabbitMQService),
 		fx.Provide(server.New),
 		fx.Invoke(register),
 	).Run()

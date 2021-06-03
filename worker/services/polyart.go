@@ -15,6 +15,7 @@ import (
 )
 
 type PolyartService interface {
+	JustCopy(data []byte) ([]byte, error)
 	Convert(data []byte) ([]byte, error)
 }
 
@@ -28,6 +29,13 @@ func NewPolyartService(cfg config.Config, log *zap.Logger) PolyartService {
 		cfg: cfg.Polyart,
 		log: log.Named("polyartService"),
 	}
+}
+
+func (p *polyartService) JustCopy(data []byte) ([]byte, error) {
+	result := make([]byte, len(data))
+	copy(result, data)
+
+	return result, nil
 }
 
 func (p *polyartService) Convert(data []byte) ([]byte, error) {

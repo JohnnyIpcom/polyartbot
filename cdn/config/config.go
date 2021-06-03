@@ -16,6 +16,7 @@ type OAuth2Client struct {
 }
 
 type OAuth2 struct {
+	Enabled bool           `yaml:"enabled" default:"true"`
 	Clients []OAuth2Client `yaml:"clients"`
 }
 

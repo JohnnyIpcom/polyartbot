@@ -1,25 +1,20 @@
-package glue
+package models
 
-type RespFile interface {
-	ID() string
-	Size() int
-}
-
-type respFile struct {
+type RespFile struct {
 	FileID   string `json:"fileID"`
 	FileSize int    `json:"fileSize"`
 }
 
-func (f respFile) ID() string {
+func (f RespFile) ID() string {
 	return f.FileID
 }
 
-func (f respFile) Size() int {
+func (f RespFile) Size() int {
 	return f.FileSize
 }
 
 func NewFileResponse(fileID string, size int) RespFile {
-	return &respFile{
+	return RespFile{
 		FileID:   fileID,
 		FileSize: size,
 	}

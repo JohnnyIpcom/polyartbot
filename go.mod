@@ -22,6 +22,7 @@ require (
 	golang.org/x/image v0.0.0-20210504121937-7319ad40d33e // indirect
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
 	golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c
+	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )

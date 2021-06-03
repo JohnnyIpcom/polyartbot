@@ -64,7 +64,7 @@ func (s *Mongo) Disconnect(ctx context.Context) error {
 	return s.client.Disconnect(ctx)
 }
 
-func (s *Mongo) Upload(name string, p []byte, doc map[string]string) (string, error) {
+func (s *Mongo) Upload(fileID string, name string, p []byte, doc map[string]string) error {
 	metadata := make(bsonx.Doc, 0)
 	for key, val := range doc {
 		metadata = metadata.Append(key, bsonx.String(val))
@@ -73,18 +73,17 @@ func (s *Mongo) Upload(name string, p []byte, doc map[string]string) (string, er
 	opts := options.GridFSUpload()
 	opts.SetMetadata(metadata)
 
-	fileID := uuid.New()
-	uploadStream, err := s.bucket.OpenUploadStreamWithID(fileID, name, opts)
+	uploadStream, err := s.bucket.OpenUploadStreamWithID(uuid.MustParse(fileID), name, opts)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer uploadStream.Close()
 
 	if _, err := uploadStream.Write(p); err != nil {
-		return "", err
+		return err
 	}
 
-	return fileID.String(), nil
+	return nil
 }
 
 func (s *Mongo) GetMetadata(fileID string) (map[string]string, error) {

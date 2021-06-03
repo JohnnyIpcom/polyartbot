@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/johnnyipcom/polyartbot/glue"
+	"github.com/johnnyipcom/polyartbot/models"
 	"github.com/johnnyipcom/polyartbot/rabbitmq"
 
 	"github.com/johnnyipcom/polyartbot/worker/config"
@@ -37,6 +37,7 @@ func New(cfg config.Config, r *rabbitmq.RabbitMQ, i services.ImageService, p ser
 		log:       log.Named("consumer"),
 		rabbitMQ:  r,
 		imageServ: i,
+		polyServ:  p,
 		imageAMQP: rabbitmq.NewAMQP(amqpConfig, r, log),
 	}, nil
 }
@@ -95,23 +96,36 @@ func (c *Consumer) processMessage(msg rabbitmq.Message) <-chan error {
 			return
 		}
 
-		var u glue.UploadImage
-		if err := json.Unmarshal(msg.Body, &u); err != nil {
+		var image models.RabbitMQImage
+		if err := json.Unmarshal(msg.Body, &image); err != nil {
 			out <- err
 			return
 		}
 
-		data, err := c.imageServ.Download(u.FileID)
+		oldData, err := c.imageServ.Download(image.FileID)
 		if err != nil {
 			out <- err
 			return
 		}
 
-		_, err = c.polyServ.Convert(data)
+		if err := c.imageServ.Delete(image.FileID); err != nil {
+			out <- err
+			return
+		}
+
+		newData, err := c.polyServ.JustCopy(oldData)
 		if err != nil {
 			out <- err
 			return
 		}
+
+		uuid, err := c.imageServ.Upload("result.jpg", newData, image.From)
+		if err != nil {
+			out <- err
+			return
+		}
+
+		c.log.Info("Got new UUID", zap.String("uuid", uuid))
 	}()
 
 	return out
