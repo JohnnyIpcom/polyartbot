@@ -13,13 +13,13 @@ type ImageService interface {
 }
 
 type imageService struct {
-	client *client.Client
+	client client.Client
 	log    *zap.Logger
 }
 
 var _ ImageService = &imageService{}
 
-func NewImageService(cfg config.Config, c *client.Client, log *zap.Logger) ImageService {
+func NewImageService(cfg config.Config, c client.Client, log *zap.Logger) ImageService {
 	return &imageService{
 		client: c,
 		log:    log.Named("imageService"),

@@ -1,11 +1,6 @@
 package config
 
-import (
-	"time"
-
-	"github.com/creasty/defaults"
-	"gopkg.in/yaml.v3"
-)
+import "time"
 
 // Reconnect ...
 type Reconnect struct {
@@ -13,30 +8,31 @@ type Reconnect struct {
 	MaxAttempt int           `yaml:"maxAttempt" default:"7200"`
 }
 
-type AMQP struct {
-	ExchangeName  string `yaml:"exchangeName"`
-	ExchangeType  string `yaml:"exchangeType"`
-	RoutingKey    string `yaml:"routingKey"`
-	QueueName     string `yaml:"queueName"`
-	PrefetchCount int    `yaml:"prefetchCount" default:"1"`
+type Queue struct {
 }
 
-func (a *AMQP) UnmarshalYAML(node *yaml.Node) error {
-	defaults.MustSet(a)
+type Exchange struct {
+	Type string `yaml:"type" default:"direct"`
+}
 
-	type rawAMQP AMQP
-	if err := node.Decode((*rawAMQP)(a)); err != nil {
-		return err
-	}
+type Binding struct {
+	Exchange   string `yaml:"exchange"`
+	Queue      string `yaml:"queue"`
+	RoutingKey string `yaml:"routingKey"`
+}
 
-	return nil
+type AMQP struct {
+	PrefetchCount int                 `yaml:"prefetchCount" default:"1"`
+	Exchanges     map[string]Exchange `yaml:"exchanges"`
+	Queues        map[string]Queue    `yaml:"queues"`
+	Bindings      []Binding           `yaml:"bindings"`
 }
 
 // RabbitMQ ...
 type RabbitMQ struct {
-	URI            string          `yaml:"uri"`
-	ConnectionName string          `yaml:"connectionName"`
-	NotifyTimeout  time.Duration   `yaml:"notifyTimeout" default:"100ms"`
-	Reconnect      Reconnect       `yaml:"reconnect"`
-	AMQPs          map[string]AMQP `yaml:"AMQPs"`
+	URI            string        `yaml:"uri"`
+	ConnectionName string        `yaml:"connectionName"`
+	NotifyTimeout  time.Duration `yaml:"notifyTimeout" default:"100ms"`
+	Reconnect      Reconnect     `yaml:"reconnect"`
+	AMQP           AMQP          `yaml:"amqp"`
 }

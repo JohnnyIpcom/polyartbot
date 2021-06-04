@@ -38,8 +38,8 @@ func (ch *Channel) Close() error {
 	return ch.Channel.Close()
 }
 
-func (ch *Channel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error) {
-	deliveries := make(chan amqp.Delivery)
+func (ch *Channel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan Delivery, error) {
+	deliveries := make(chan Delivery)
 
 	go func() {
 		for {
@@ -51,7 +51,17 @@ func (ch *Channel) Consume(queue, consumer string, autoAck, exclusive, noLocal, 
 			}
 
 			for msg := range d {
-				deliveries <- msg
+				m := Delivery{
+					ack:         msg.Acknowledger,
+					tag:         msg.DeliveryTag,
+					MessageId:   msg.MessageId,
+					ContentType: msg.ContentType,
+				}
+
+				m.Body = make([]byte, len(msg.Body))
+				copy(m.Body, msg.Body)
+
+				deliveries <- m
 			}
 
 			time.Sleep(ch.cfg.Interval)

@@ -2,7 +2,6 @@ package rabbitmq
 
 import (
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/johnnyipcom/polyartbot/config"
@@ -11,33 +10,20 @@ import (
 	"go.uber.org/zap"
 )
 
-type Message struct {
-	MessageID   string
-	ContentType string
-	Body        []byte
-}
-
 type AMQP struct {
 	cfg      config.AMQP
 	log      *zap.Logger
 	rabbitMQ *RabbitMQ
-	once     sync.Once
+	queues   []string
 }
 
 func NewAMQP(cfg config.AMQP, rabbitMQ *RabbitMQ, log *zap.Logger) *AMQP {
 	return &AMQP{
 		cfg:      cfg,
 		log:      log.Named("amqp"),
+		queues:   make([]string, 0),
 		rabbitMQ: rabbitMQ,
 	}
-}
-
-func (a *AMQP) initOnce() {
-	a.once.Do(func() {
-		if err := a.Setup(); err != nil {
-			a.log.Fatal("can't init AMQP", zap.Error(err))
-		}
-	})
 }
 
 func (a *AMQP) Setup() error {
@@ -47,53 +33,56 @@ func (a *AMQP) Setup() error {
 	}
 	defer channel.Close()
 
-	if err := channel.ExchangeDeclare(
-		a.cfg.ExchangeName,
-		a.cfg.ExchangeType,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	); err != nil {
-		return err
+	for name, exchange := range a.cfg.Exchanges {
+		if err := channel.ExchangeDeclare(
+			name,
+			exchange.Type,
+			true,
+			false,
+			false,
+			false,
+			nil,
+		); err != nil {
+			return err
+		}
 	}
 
-	if _, err := channel.QueueDeclare(
-		a.cfg.QueueName,
-		true,
-		false,
-		false,
-		false,
-		amqp.Table{"x-queue-mode": "lazy"},
-	); err != nil {
-		return err
+	for name := range a.cfg.Queues {
+		q, err := channel.QueueDeclare(
+			name,
+			true,
+			false,
+			false,
+			false,
+			amqp.Table{"x-queue-mode": "lazy"},
+		)
+		if err != nil {
+			return err
+		}
+
+		a.queues = append(a.queues, q.Name)
 	}
 
-	if err := channel.QueueBind(
-		a.cfg.QueueName,
-		a.cfg.RoutingKey,
-		a.cfg.ExchangeName,
-		false,
-		nil,
-	); err != nil {
-		return err
-	}
-
-	if err := channel.Qos(
-		a.cfg.PrefetchCount,
-		0,
-		false,
-	); err != nil {
-		return err
+	for _, binding := range a.cfg.Bindings {
+		if err := channel.QueueBind(
+			binding.Queue,
+			binding.RoutingKey,
+			binding.Exchange,
+			false,
+			nil,
+		); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (a *AMQP) Publish(m Message) error {
-	a.initOnce()
+func (a *AMQP) GetQueues() []string {
+	return a.queues
+}
 
+func (a *AMQP) Publish(p Publishing, exchange string, routingKey string) error {
 	channel, err := a.rabbitMQ.Channel()
 	if err != nil {
 		return err
@@ -105,15 +94,15 @@ func (a *AMQP) Publish(m Message) error {
 	}
 
 	if err := channel.Publish(
-		a.cfg.ExchangeName,
-		a.cfg.RoutingKey,
+		exchange,
+		routingKey,
 		true,
 		false,
 		amqp.Publishing{
 			DeliveryMode: amqp.Persistent,
-			MessageId:    m.MessageID,
-			ContentType:  m.ContentType,
-			Body:         m.Body,
+			MessageId:    p.MessageId,
+			ContentType:  p.ContentType,
+			Body:         p.Body,
 		},
 	); err != nil {
 		return err
@@ -133,16 +122,22 @@ func (a *AMQP) Publish(m Message) error {
 	return nil
 }
 
-func (a *AMQP) Consume(consumer string) (<-chan Message, error) {
-	a.initOnce()
-
+func (a *AMQP) Consume(queue string, consumer string) (<-chan Delivery, error) {
 	channel, err := a.rabbitMQ.Channel()
 	if err != nil {
 		return nil, err
 	}
 
-	deliveries, err := channel.Consume(
-		a.cfg.QueueName,
+	if err := channel.Qos(
+		a.cfg.PrefetchCount,
+		0,
+		false,
+	); err != nil {
+		return nil, err
+	}
+
+	return channel.Consume(
+		queue,
 		consumer,
 		false,
 		false,
@@ -150,29 +145,4 @@ func (a *AMQP) Consume(consumer string) (<-chan Message, error) {
 		false,
 		nil,
 	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	msgs := make(chan Message)
-	go func() {
-		for d := range deliveries {
-			m := Message{
-				MessageID:   d.MessageId,
-				ContentType: d.ContentType,
-			}
-
-			m.Body = make([]byte, len(d.Body))
-			copy(m.Body, d.Body)
-
-			msgs <- m
-
-			if err := d.Ack(false); err != nil {
-				a.log.Error("Unable to acknowledge the message, dropped", zap.Error(err))
-			}
-		}
-	}()
-
-	return msgs, nil
 }

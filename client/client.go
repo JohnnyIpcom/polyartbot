@@ -17,13 +17,21 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-type Client struct {
+type Client interface {
+	GetImage(fileID string) (string, []byte, error)
+	PostImage(filename string, data []byte, from int64, to int64) (string, error)
+	DeleteImage(fileID string) error
+
+	Health() (string, error)
+}
+
+type client struct {
 	log     *zap.Logger
 	baseURL *url.URL
 	c       *http.Client
 }
 
-func New(cfg config.Client, log *zap.Logger) (*Client, error) {
+func New(cfg config.Client, log *zap.Logger) (Client, error) {
 	baseURL, err := url.Parse(cfg.URL)
 	if err != nil {
 		return nil, err
@@ -51,7 +59,7 @@ func New(cfg config.Client, log *zap.Logger) (*Client, error) {
 		c = http.DefaultClient
 	}
 
-	return &Client{
+	return &client{
 		log:     log.Named("client"),
 		baseURL: baseURL,
 		c:       c,
@@ -60,7 +68,7 @@ func New(cfg config.Client, log *zap.Logger) (*Client, error) {
 
 var errorRx = regexp.MustCompile(`{.+"error":(\d+),?}`)
 
-func (c *Client) raw(method string, url string, payload interface{}) ([]byte, error) {
+func (c *client) raw(method string, url string, payload interface{}) ([]byte, error) {
 	u, err := c.baseURL.Parse(url)
 	if err != nil {
 		return nil, err
@@ -93,7 +101,7 @@ func (c *Client) raw(method string, url string, payload interface{}) ([]byte, er
 	return data, extractOk(data)
 }
 
-func (c *Client) sendFiles(url string, rawFiles map[string]io.Reader, params map[string]string) ([]byte, error) {
+func (c *client) sendFiles(url string, rawFiles map[string]io.Reader, params map[string]string) ([]byte, error) {
 	if len(rawFiles) == 0 {
 		return c.raw(http.MethodPost, url, params)
 	}
@@ -153,7 +161,7 @@ func addFileToWriter(writer *multipart.Writer, filename, field string, r io.Read
 	return err
 }
 
-func (c *Client) GetImage(fileID string) (string, []byte, error) {
+func (c *client) GetImage(fileID string) (string, []byte, error) {
 	url := fmt.Sprintf("/cdn/image/%s", fileID)
 	data, err := c.raw(http.MethodGet, url, nil)
 	if err != nil {
@@ -173,7 +181,7 @@ func (c *Client) GetImage(fileID string) (string, []byte, error) {
 	return r.RespMessage, r.RespData, nil
 }
 
-func (c *Client) PostImage(filename string, data []byte, from int64, to int64) (string, error) {
+func (c *client) PostImage(filename string, data []byte, from int64, to int64) (string, error) {
 	url := fmt.Sprintf("/cdn/image?from=%d&to=%d", from, to)
 
 	files := make(map[string]io.Reader)
@@ -200,7 +208,7 @@ func (c *Client) PostImage(filename string, data []byte, from int64, to int64) (
 	return r.RespFiles[0].ID(), nil
 }
 
-func (c *Client) DeleteImage(fileID string) error {
+func (c *client) DeleteImage(fileID string) error {
 	url := fmt.Sprintf("/cdn/image/%s", fileID)
 	_, err := c.raw(http.MethodDelete, url, nil)
 	if err != nil {
@@ -210,7 +218,7 @@ func (c *Client) DeleteImage(fileID string) error {
 	return nil
 }
 
-func (c *Client) Health(context.Context) (string, error) {
+func (c *client) Health() (string, error) {
 	data, err := c.raw(http.MethodGet, "/health", nil)
 	if err != nil {
 		return "", err

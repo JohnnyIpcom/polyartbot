@@ -2,7 +2,6 @@ package services
 
 import (
 	"encoding/json"
-	"errors"
 
 	"github.com/johnnyipcom/polyartbot/cdn/config"
 	"github.com/johnnyipcom/polyartbot/models"
@@ -15,23 +14,18 @@ type RabbitMQService interface {
 }
 
 type rabbitMQService struct {
-	log       *zap.Logger
-	rabbitMQ  *rabbitmq.RabbitMQ
-	imageAMQP *rabbitmq.AMQP
+	log      *zap.Logger
+	rabbitMQ *rabbitmq.RabbitMQ
+	amqp     *rabbitmq.AMQP
 }
 
 var _ RabbitMQService = &rabbitMQService{}
 
 func NewRabbitMQService(cfg config.Config, r *rabbitmq.RabbitMQ, log *zap.Logger) (RabbitMQService, error) {
-	amqpConfig, ok := cfg.RabbitMQ.AMQPs["image.upload"]
-	if !ok {
-		return nil, errors.New("no valid 'image.upload' config")
-	}
-
 	return &rabbitMQService{
-		log:       log.Named("rabbitMQService"),
-		rabbitMQ:  r,
-		imageAMQP: rabbitmq.NewAMQP(amqpConfig, r, log),
+		log:      log.Named("rabbitMQService"),
+		rabbitMQ: r,
+		amqp:     rabbitmq.NewAMQP(cfg.RabbitMQ.AMQP, r, log),
 	}, nil
 }
 
@@ -42,9 +36,19 @@ func (r *rabbitMQService) Publish(image models.RabbitMQImage) error {
 		return err
 	}
 
-	return r.imageAMQP.Publish(rabbitmq.Message{
-		MessageID:   image.FileID,
+	p := rabbitmq.Publishing{
+		MessageId:   image.FileID,
 		ContentType: "application/json",
 		Body:        body,
-	})
+	}
+
+	if image.From != 0 {
+		return r.amqp.Publish(p, "image", "upload")
+	}
+
+	if image.To != 0 {
+		return r.amqp.Publish(p, "image", "download")
+	}
+
+	return nil
 }

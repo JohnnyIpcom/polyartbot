@@ -20,25 +20,20 @@ type Consumer struct {
 	cfg       config.Consumer
 	log       *zap.Logger
 	rabbitMQ  *rabbitmq.RabbitMQ
-	imageAMQP *rabbitmq.AMQP
+	amqp      *rabbitmq.AMQP
 	imageServ services.ImageService
 	polyServ  services.PolyartService
 	tomb      tomb.Tomb
 }
 
 func New(cfg config.Config, r *rabbitmq.RabbitMQ, i services.ImageService, p services.PolyartService, log *zap.Logger) (*Consumer, error) {
-	amqpConfig, ok := cfg.RabbitMQ.AMQPs["image.upload"]
-	if !ok {
-		return nil, errors.New("no valid 'image.upload' config")
-	}
-
 	return &Consumer{
 		cfg:       cfg.Consumer,
 		log:       log.Named("consumer"),
 		rabbitMQ:  r,
 		imageServ: i,
 		polyServ:  p,
-		imageAMQP: rabbitmq.NewAMQP(amqpConfig, r, log),
+		amqp:      rabbitmq.NewAMQP(cfg.RabbitMQ.AMQP, r, log),
 	}, nil
 }
 
@@ -61,7 +56,7 @@ func (c *Consumer) Stop(ctx context.Context) error {
 
 func (c *Consumer) processor(name string) error {
 	c.log.Info("Starting processor...", zap.String("name", name))
-	msgs, err := c.imageAMQP.Consume(name)
+	msgs, err := c.amqp.Consume("image_upload", name)
 	if err != nil {
 		return err
 	}
@@ -72,8 +67,10 @@ func (c *Consumer) processor(name string) error {
 			case msg := <-msgs:
 				if err := <-c.processMessage(msg); err != nil {
 					c.log.Error("can't process message", zap.Error(err))
+					msg.Reject(false)
 					continue
 				}
+				msg.Ack(false)
 
 			case <-c.tomb.Dying():
 				return c.tomb.Err()
@@ -84,8 +81,8 @@ func (c *Consumer) processor(name string) error {
 	return nil
 }
 
-func (c *Consumer) processMessage(msg rabbitmq.Message) <-chan error {
-	c.log.Info("Processing message...", zap.String("id", msg.MessageID))
+func (c *Consumer) processMessage(msg rabbitmq.Delivery) <-chan error {
+	c.log.Info("Processing message...", zap.String("id", msg.MessageId))
 	out := make(chan error)
 
 	go func() {
@@ -108,11 +105,6 @@ func (c *Consumer) processMessage(msg rabbitmq.Message) <-chan error {
 			return
 		}
 
-		if err := c.imageServ.Delete(image.FileID); err != nil {
-			out <- err
-			return
-		}
-
 		newData, err := c.polyServ.JustCopy(oldData)
 		if err != nil {
 			out <- err
@@ -121,6 +113,11 @@ func (c *Consumer) processMessage(msg rabbitmq.Message) <-chan error {
 
 		uuid, err := c.imageServ.Upload("result.jpg", newData, image.From)
 		if err != nil {
+			out <- err
+			return
+		}
+
+		if err := c.imageServ.Delete(image.FileID); err != nil {
 			out <- err
 			return
 		}

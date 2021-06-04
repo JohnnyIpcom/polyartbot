@@ -81,15 +81,13 @@ func (i *imageController) Post(c *gin.Context) {
 		return
 	}
 
-	if image.From != 0 {
-		lenMap.Range(func(key interface{}, value interface{}) bool {
-			fileID := key.(string)
-			g.Go(func() error {
-				return i.rabbitMQ.Publish(models.NewRabbitMQImage(fileID, image.From))
-			})
-			return true
+	lenMap.Range(func(key interface{}, value interface{}) bool {
+		fileID := key.(string)
+		g.Go(func() error {
+			return i.rabbitMQ.Publish(models.NewRabbitMQImage(fileID, image.From, image.To))
 		})
-	}
+		return true
+	})
 
 	if err := g.Wait(); err != nil {
 		restErr := models.NewInternalServerError("internal rabbitMQ error", err)

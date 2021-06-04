@@ -45,12 +45,7 @@ func (r *RabbitMQ) Connect(ctx context.Context) error {
 }
 
 func (r *RabbitMQ) Disconnect(ctx context.Context) error {
-	c, err := r.Connection()
-	if err != nil {
-		return err
-	}
-
-	return c.Close()
+	return r.connection.Close()
 }
 
 func (r *RabbitMQ) Connection() (*Connection, error) {
