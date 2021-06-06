@@ -217,7 +217,6 @@ type Consumer interface {
 
 func (a *AMQP) Consume(ctx context.Context, queue string, c Consumer) error {
 	if err := <-a.isConnected.Await(ctx, true); err != nil {
-		a.log.Error("ERROR 1", zap.Error(err))
 		return err
 	}
 
@@ -226,7 +225,6 @@ func (a *AMQP) Consume(ctx context.Context, queue string, c Consumer) error {
 		0,
 		false,
 	); err != nil {
-		a.log.Error("ERROR 2", zap.Error(err))
 		return err
 	}
 
@@ -244,7 +242,6 @@ func (a *AMQP) Consume(ctx context.Context, queue string, c Consumer) error {
 			nil,
 		)
 		if err != nil {
-			a.log.Error("ERROR 3", zap.Error(err))
 			return err
 		}
 
@@ -254,13 +251,11 @@ func (a *AMQP) Consume(ctx context.Context, queue string, c Consumer) error {
 			for {
 				select {
 				case <-ctx.Done():
-					a.log.Error("ERROR 4", zap.Error(ctx.Err()))
 					return
 
 				case msg, ok := <-msgs:
 					if !ok {
 						connectionDropped = true
-						a.log.Error("ERROR 5")
 						return
 					}
 
@@ -286,7 +281,6 @@ func (a *AMQP) Consume(ctx context.Context, queue string, c Consumer) error {
 
 	wg.Wait()
 	if connectionDropped {
-		a.log.Error("ERROR 6")
 		return ErrDisconnected
 	}
 
