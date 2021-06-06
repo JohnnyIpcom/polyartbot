@@ -20,9 +20,9 @@ import (
 type RegisterParams struct {
 	fx.In
 
-	Storage  storage.Storage
-	RabbitMQ *rabbitmq.RabbitMQ
-	Server   *server.Server
+	Storage storage.Storage
+	AMQP    *rabbitmq.AMQP
+	Server  *server.Server
 }
 
 func register(lifecycle fx.Lifecycle, p RegisterParams) {
@@ -32,7 +32,7 @@ func register(lifecycle fx.Lifecycle, p RegisterParams) {
 				return err
 			}
 
-			if err := p.RabbitMQ.Connect(ctx); err != nil {
+			if err := p.AMQP.Connect(ctx); err != nil {
 				return err
 			}
 
@@ -41,7 +41,7 @@ func register(lifecycle fx.Lifecycle, p RegisterParams) {
 
 		OnStop: func(ctx context.Context) error {
 			p.Server.Stop(ctx)
-			p.RabbitMQ.Disconnect(ctx)
+			p.AMQP.Disconnect(ctx)
 			return p.Storage.Disconnect(ctx)
 		},
 	})
@@ -65,16 +65,17 @@ func main() {
 	fx.New(
 		//fx.StartTimeout(30*time.Minute), // uncomment this for debug
 		fx.Supply(cfg, log),
-		fx.Provide(func(cfg config.Config) pcfg.RabbitMQ {
-			return cfg.RabbitMQ
+		fx.Provide(func(cfg config.Config) pcfg.AMQP {
+			return cfg.AMQP
 		}),
 		fx.Provide(storage.NewMongo),
-		fx.Provide(rabbitmq.New),
+		fx.Provide(rabbitmq.NewAMQP),
 		fx.Provide(controllers.NewHealthController),
 		fx.Provide(controllers.NewImageController),
 		fx.Provide(controllers.NewOAuth2Controller),
 		fx.Provide(services.NewImageService),
 		fx.Provide(services.NewRabbitMQService),
+		fx.Provide(services.NewOAuth2Service),
 		fx.Provide(server.New),
 		fx.Invoke(register),
 	).Run()

@@ -5,10 +5,10 @@ import (
 )
 
 type ImageStorage interface {
-	Upload(fileID string, name string, bytes []byte, metadata map[string]string) error
-	GetMetadata(fileID string) (map[string]string, error)
-	Download(fileID string) ([]byte, error)
-	Delete(fileID string) error
+	Upload(ctx context.Context, fileID string, name string, bytes []byte, metadata map[string]string) error
+	GetMetadata(ctx context.Context, fileID string) (map[string]string, error)
+	Download(ctx context.Context, fileID string) ([]byte, error)
+	Delete(ctx context.Context, fileID string) error
 }
 
 type Storage interface {

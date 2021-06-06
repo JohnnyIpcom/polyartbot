@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"time"
 
 	pcfg "github.com/johnnyipcom/polyartbot/config"
 
@@ -22,8 +23,9 @@ type OAuth2 struct {
 
 // Server ...
 type Server struct {
-	Addr   string `yaml:"addr" default:":8080"`
-	OAuth2 OAuth2 `yaml:"oauth2"`
+	Addr    string        `yaml:"addr" default:":8080"`
+	Timeout time.Duration `yaml:"timeout" default:"30s"`
+	OAuth2  OAuth2        `yaml:"oauth2"`
 }
 
 // Mongo ...
@@ -40,11 +42,11 @@ type Redis struct {
 
 // Config ...
 type Config struct {
-	Server   Server        `yaml:"server"`
-	Mongo    Mongo         `yaml:"mongo"`
-	Redis    Redis         `yaml:"redis"`
-	RabbitMQ pcfg.RabbitMQ `yaml:"rabbitMQ"`
-	Logger   pcfg.Logger   `yaml:"logger"`
+	Server Server      `yaml:"server"`
+	Mongo  Mongo       `yaml:"mongo"`
+	Redis  Redis       `yaml:"redis"`
+	AMQP   pcfg.AMQP   `yaml:"amqp"`
+	Logger pcfg.Logger `yaml:"logger"`
 }
 
 const (

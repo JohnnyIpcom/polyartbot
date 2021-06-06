@@ -4,7 +4,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -46,30 +45,44 @@ func (i *imageController) Post(c *gin.Context) {
 		return
 	}
 
-	form, _ := c.MultipartForm()
-	headers := form.File["file"]
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<20) //2Mb
+	form, err := c.MultipartForm()
+	if err != nil {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+			"error":   http.StatusText(http.StatusRequestEntityTooLarge),
+			"message": "request entity exceeds 2Mb",
+		})
+		return
+	}
 
-	var lenMap sync.Map
+	results := make([]models.RespFile, 0)
 	g := errgroup.Group{}
+
+	headers := form.File["file"]
 	for _, header := range headers {
 		func(header *multipart.FileHeader) {
-			uuid := uuid.New()
+			uuid := uuid.New().String()
 			g.Go(func() error {
 				file, err := header.Open()
 				if err != nil {
-					return nil
+					return err
 				}
 
 				metadata := make(map[string]string)
 				metadata["from"] = strconv.FormatInt(image.From, 10)
 				metadata["to"] = strconv.FormatInt(image.To, 10)
 
-				len, err := i.image.Upload(uuid.String(), file, *header, metadata)
+				len, err := i.image.Upload(c.Request.Context(), uuid, file, *header, metadata)
 				if err != nil {
-					return nil
+					return err
 				}
 
-				lenMap.Store(uuid.String(), len)
+				if err := i.rabbitMQ.Publish(c.Request.Context(), models.NewRabbitMQImage(uuid, image.From, image.To)); err != nil {
+					i.image.Delete(c.Request.Context(), uuid)
+					return err
+				}
+
+				results = append(results, models.NewFileResponse(uuid, len))
 				return nil
 			})
 		}(header)
@@ -80,28 +93,6 @@ func (i *imageController) Post(c *gin.Context) {
 		c.JSON(restErr.Status(), restErr)
 		return
 	}
-
-	lenMap.Range(func(key interface{}, value interface{}) bool {
-		fileID := key.(string)
-		g.Go(func() error {
-			return i.rabbitMQ.Publish(models.NewRabbitMQImage(fileID, image.From, image.To))
-		})
-		return true
-	})
-
-	if err := g.Wait(); err != nil {
-		restErr := models.NewInternalServerError("internal rabbitMQ error", err)
-		c.JSON(restErr.Status(), restErr)
-		return
-	}
-
-	results := make([]models.RespFile, 0)
-	lenMap.Range(func(key interface{}, value interface{}) bool {
-		fileID := key.(string)
-		length := value.(int)
-		results = append(results, models.NewFileResponse(fileID, length))
-		return true
-	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Files uploaded successfully",
@@ -119,7 +110,7 @@ func (i *imageController) Get(c *gin.Context) {
 
 	g := errgroup.Group{}
 	g.Go(func() error {
-		d, err := i.image.Download(fileID)
+		d, err := i.image.Download(c.Request.Context(), fileID)
 		if err != nil {
 			return err
 		}
@@ -129,7 +120,7 @@ func (i *imageController) Get(c *gin.Context) {
 	})
 
 	g.Go(func() error {
-		m, err := i.image.GetMetadata(fileID)
+		m, err := i.image.GetMetadata(c.Request.Context(), fileID)
 		if err != nil {
 			return err
 		}
@@ -149,7 +140,7 @@ func (i *imageController) Get(c *gin.Context) {
 }
 
 func (i *imageController) Delete(c *gin.Context) {
-	err := i.image.Delete(c.Param("filename"))
+	err := i.image.Delete(c.Request.Context(), c.Param("filename"))
 	if err != nil {
 		restErr := models.NewBadRequestError(err.Error())
 		c.JSON(restErr.Status(), restErr)

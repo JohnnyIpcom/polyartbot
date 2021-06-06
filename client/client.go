@@ -66,7 +66,7 @@ func New(cfg config.Client, log *zap.Logger) (Client, error) {
 	}, nil
 }
 
-var errorRx = regexp.MustCompile(`{.+"error":(\d+),?}`)
+var errorRx = regexp.MustCompile(`{.+"error":"(.+)".+}`)
 
 func (c *client) raw(method string, url string, payload interface{}) ([]byte, error) {
 	u, err := c.baseURL.Parse(url)

@@ -22,11 +22,11 @@ type Consumer struct {
 
 // Config ...
 type Config struct {
-	Polyart  Polyart       `yaml:"polyart"`
-	Consumer Consumer      `yaml:"consumer"`
-	Client   pcfg.Client   `yaml:"client"`
-	RabbitMQ pcfg.RabbitMQ `yaml:"rabbitMQ"`
-	Logger   pcfg.Logger   `yaml:"logger"`
+	Polyart  Polyart     `yaml:"polyart"`
+	Consumer Consumer    `yaml:"consumer"`
+	Client   pcfg.Client `yaml:"client"`
+	AMQP     pcfg.AMQP   `yaml:"amqp"`
+	Logger   pcfg.Logger `yaml:"logger"`
 }
 
 const (

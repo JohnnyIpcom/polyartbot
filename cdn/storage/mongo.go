@@ -64,7 +64,7 @@ func (s *Mongo) Disconnect(ctx context.Context) error {
 	return s.client.Disconnect(ctx)
 }
 
-func (s *Mongo) Upload(fileID string, name string, p []byte, doc map[string]string) error {
+func (s *Mongo) Upload(ctx context.Context, fileID string, name string, p []byte, doc map[string]string) error {
 	metadata := make(bsonx.Doc, 0)
 	for key, val := range doc {
 		metadata = metadata.Append(key, bsonx.String(val))
@@ -86,7 +86,7 @@ func (s *Mongo) Upload(fileID string, name string, p []byte, doc map[string]stri
 	return nil
 }
 
-func (s *Mongo) GetMetadata(fileID string) (map[string]string, error) {
+func (s *Mongo) GetMetadata(ctx context.Context, fileID string) (map[string]string, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -112,7 +112,7 @@ func (s *Mongo) GetMetadata(fileID string) (map[string]string, error) {
 	return m.Metadata, nil
 }
 
-func (s *Mongo) Download(fileID string) ([]byte, error) {
+func (s *Mongo) Download(ctx context.Context, fileID string) ([]byte, error) {
 	s.log.Info("Downloading file...", zap.String("fileID", fileID))
 	downloadStream, err := s.bucket.OpenDownloadStream(uuid.MustParse(fileID))
 	if err != nil {
@@ -129,7 +129,7 @@ func (s *Mongo) Download(fileID string) ([]byte, error) {
 	return data, nil
 }
 
-func (s *Mongo) Delete(fileID string) error {
+func (s *Mongo) Delete(ctx context.Context, fileID string) error {
 	s.log.Info("Deleting file...", zap.String("fileID", fileID))
 	return s.bucket.Delete(uuid.MustParse(fileID))
 }

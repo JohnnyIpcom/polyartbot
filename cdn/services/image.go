@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"io"
 	"mime/multipart"
 
@@ -12,10 +13,10 @@ import (
 )
 
 type ImageService interface {
-	Upload(fileID string, file multipart.File, header multipart.FileHeader, metadata map[string]string) (int, error)
-	GetMetadata(fileID string) (map[string]string, error)
-	Download(fileID string) ([]byte, error)
-	Delete(fileID string) error
+	Upload(ctx context.Context, fileID string, file multipart.File, header multipart.FileHeader, metadata map[string]string) (int, error)
+	GetMetadata(ctx context.Context, fileID string) (map[string]string, error)
+	Download(ctx context.Context, fileID string) ([]byte, error)
+	Delete(ctx context.Context, fileID string) error
 }
 
 type imageService struct {
@@ -32,7 +33,7 @@ func NewImageService(cfg config.Config, s storage.Storage, log *zap.Logger) Imag
 	}
 }
 
-func (i *imageService) Upload(fileID string, file multipart.File, header multipart.FileHeader, metadata map[string]string) (int, error) {
+func (i *imageService) Upload(ctx context.Context, fileID string, file multipart.File, header multipart.FileHeader, metadata map[string]string) (int, error) {
 	i.log.Info("Uploading files...")
 	data, err := io.ReadAll(file)
 	if err != nil {
@@ -51,24 +52,24 @@ func (i *imageService) Upload(fileID string, file multipart.File, header multipa
 		doc[key] = value
 	}
 
-	if err := i.storage.Upload(fileID, header.Filename, data, doc); err != nil {
+	if err := i.storage.Upload(ctx, fileID, header.Filename, data, doc); err != nil {
 		return 0, err
 	}
 
 	return len(data), err
 }
 
-func (i *imageService) GetMetadata(fileID string) (map[string]string, error) {
+func (i *imageService) GetMetadata(ctx context.Context, fileID string) (map[string]string, error) {
 	i.log.Info("Getting metadata from file...", zap.String("fileID", fileID))
-	return i.storage.GetMetadata(fileID)
+	return i.storage.GetMetadata(ctx, fileID)
 }
 
-func (i *imageService) Download(fileID string) ([]byte, error) {
+func (i *imageService) Download(ctx context.Context, fileID string) ([]byte, error) {
 	i.log.Info("Downloading file...", zap.String("fileID", fileID))
-	return i.storage.Download(fileID)
+	return i.storage.Download(ctx, fileID)
 }
 
-func (i *imageService) Delete(fileID string) error {
+func (i *imageService) Delete(ctx context.Context, fileID string) error {
 	i.log.Info("Deleting file...", zap.String("fileID", fileID))
-	return i.storage.Delete(fileID)
+	return i.storage.Delete(ctx, fileID)
 }

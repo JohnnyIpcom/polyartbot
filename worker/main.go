@@ -19,7 +19,7 @@ import (
 type RegisterParams struct {
 	fx.In
 
-	RabbitMQ *rabbitmq.RabbitMQ
+	RabbitMQ *rabbitmq.AMQP
 	Consumer *consumer.Consumer
 }
 
@@ -57,13 +57,13 @@ func main() {
 
 	fx.New(
 		fx.Supply(cfg, log),
-		fx.Provide(func(cfg config.Config) pcfg.RabbitMQ {
-			return cfg.RabbitMQ
+		fx.Provide(func(cfg config.Config) pcfg.AMQP {
+			return cfg.AMQP
 		}),
 		fx.Provide(func(cfg config.Config) pcfg.Client {
 			return cfg.Client
 		}),
-		fx.Provide(rabbitmq.New),
+		fx.Provide(rabbitmq.NewAMQP),
 		fx.Provide(consumer.New),
 		fx.Provide(client.New),
 		fx.Provide(services.NewImageService),
