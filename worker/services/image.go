@@ -7,7 +7,7 @@ import (
 )
 
 type ImageService interface {
-	Download(fileID string) ([]byte, error)
+	Download(fileID string) ([]byte, map[string]string, error)
 	Upload(filename string, data []byte, to int64) (string, error)
 	Delete(fileID string) error
 }
@@ -26,15 +26,15 @@ func NewImageService(cfg config.Config, c client.Client, log *zap.Logger) ImageS
 	}
 }
 
-func (i *imageService) Download(fileID string) ([]byte, error) {
+func (i *imageService) Download(fileID string) ([]byte, map[string]string, error) {
 	i.log.Info("Downloading file...", zap.String("fileID", fileID))
-	_, data, err := i.client.GetImage(fileID)
+	resp, err := i.client.GetImage(fileID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	i.log.Info("Downloaded file", zap.String("fileID", fileID), zap.Int("bytes", len(data)))
-	return data, nil
+	i.log.Info("Downloaded file", zap.String("fileID", fileID), zap.Int("bytes", len(resp.RespData)))
+	return resp.RespData, resp.RespMetadata, nil
 }
 
 func (i *imageService) Upload(filename string, data []byte, to int64) (string, error) {

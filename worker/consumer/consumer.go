@@ -15,7 +15,6 @@ import (
 )
 
 type Consumer struct {
-	cfg       config.Consumer
 	log       *zap.Logger
 	amqp      *rabbitmq.AMQP
 	imageServ services.ImageService
@@ -25,7 +24,6 @@ type Consumer struct {
 
 func New(cfg config.Config, amqp *rabbitmq.AMQP, i services.ImageService, p services.PolyartService, log *zap.Logger) (*Consumer, error) {
 	return &Consumer{
-		cfg:       cfg.Consumer,
 		log:       log.Named("consumer"),
 		amqp:      amqp,
 		imageServ: i,
@@ -67,7 +65,7 @@ func (c *Consumer) Consume(msg rabbitmq.Delivery) error {
 		return err
 	}
 
-	oldData, err := c.imageServ.Download(image.FileID)
+	oldData, _, err := c.imageServ.Download(image.FileID)
 	if err != nil {
 		return err
 	}

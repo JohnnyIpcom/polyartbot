@@ -18,7 +18,7 @@ import (
 )
 
 type Client interface {
-	GetImage(fileID string) (string, []byte, error)
+	GetImage(fileID string) (*models.RespGet, error)
 	PostImage(filename string, data []byte, from int64, to int64) (string, error)
 	DeleteImage(fileID string) error
 
@@ -161,24 +161,19 @@ func addFileToWriter(writer *multipart.Writer, filename, field string, r io.Read
 	return err
 }
 
-func (c *client) GetImage(fileID string) (string, []byte, error) {
+func (c *client) GetImage(fileID string) (*models.RespGet, error) {
 	url := fmt.Sprintf("/cdn/image/%s", fileID)
 	data, err := c.raw(http.MethodGet, url, nil)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	type respGet struct {
-		RespMessage string `json:"message"`
-		RespData    []byte `json:"data"`
-	}
-
-	var r respGet
+	var r models.RespGet
 	if err := json.Unmarshal(data, &r); err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	return r.RespMessage, r.RespData, nil
+	return &r, nil
 }
 
 func (c *client) PostImage(filename string, data []byte, from int64, to int64) (string, error) {

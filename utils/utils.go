@@ -1,5 +1,7 @@
 package utils
 
+import "os"
+
 func MinMax(a0 int, arr ...int) (int, int) {
 	min := a0
 	max := a0
@@ -13,4 +15,10 @@ func MinMax(a0 int, arr ...int) (int, int) {
 	}
 
 	return min, max
+}
+
+// OnDisk ...
+func OnDisk(file string) bool {
+	_, err := os.Stat(file)
+	return err == nil
 }

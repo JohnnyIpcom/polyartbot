@@ -14,19 +14,12 @@ type Polyart struct {
 	Shape int `yaml:"shape" default:"1"`
 }
 
-// Consumer ...
-type Consumer struct {
-	Processors   int    `yaml:"processors" default:"1"`
-	ProcessorTag string `yaml:"processorsTag" default:"processor"`
-}
-
 // Config ...
 type Config struct {
-	Polyart  Polyart     `yaml:"polyart"`
-	Consumer Consumer    `yaml:"consumer"`
-	Client   pcfg.Client `yaml:"client"`
-	AMQP     pcfg.AMQP   `yaml:"amqp"`
-	Logger   pcfg.Logger `yaml:"logger"`
+	Polyart Polyart     `yaml:"polyart"`
+	Client  pcfg.Client `yaml:"client"`
+	AMQP    pcfg.AMQP   `yaml:"amqp"`
+	Logger  pcfg.Logger `yaml:"logger"`
 }
 
 const (
